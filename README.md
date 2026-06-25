@@ -26,6 +26,9 @@ For local development:
 python3 -m pip install -e /path/to/whiteboard-video-engine
 ```
 
+In a restricted network environment, follow the engine README's
+`--no-build-isolation` local install path.
+
 Install the Codex skill:
 
 ```bash
