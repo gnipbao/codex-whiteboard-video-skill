@@ -1,0 +1,29 @@
+__pycache__/
+*.pyc
+.DS_Store
+.env
+.venv/
+.venv-lineart/
+out/
+work/
+output/
+*.mp4
+*.mp3
+*.wav
+*.mov
+
+# The skill must not vendor the engine or model repos.
+src/
+tools/informative-drawings/
+tools/Anime2Sketch/
+
+# Model weights and archives.
+*.pth
+*.pt
+*.ckpt
+*.safetensors
+*.onnx
+*.bin
+*.zip
+*.tar
+*.tar.gz

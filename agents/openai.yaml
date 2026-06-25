@@ -1,0 +1,3 @@
+display_name: Whiteboard Video
+short_description: Generate SpeedPaint-like whiteboard videos from scripts or images.
+default_prompt: Turn this script or image into a smooth hand-drawn whiteboard MP4.
