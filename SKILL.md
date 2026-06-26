@@ -80,7 +80,7 @@ python3 scripts/whiteboard_cli.py render-image lineart.png \
   --size-from-image \
   --color-fill contour-wipe \
   --stroke-detail rich \
-  --line-thickness 2 \
+  --line-thickness 1 \
   -o output.mp4 \
   --duration 15 --fps 30 --tail-color 4.5 --hand asian
 ```

@@ -4,7 +4,7 @@
 
 # Codex 白板视频 Skill
 
-[English](README.md)
+[English](README.en.md)
 
 [whiteboard-video-engine](https://github.com/gnipbao/whiteboard-video-engine) 的 Codex Skill 适配层。安装后，Codex 可以直接调用本地引擎，把图片、SVG、线稿或脚本转换成白板手绘视频。
 
@@ -101,7 +101,11 @@ my-whiteboard-project/
     lineart/
       run_informative_drawings.py
       run_anime2sketch.py
-    informative-drawings/
+    informative-drawings/              # 必须是完整 clone 的上游项目目录
+      test.py
+      model.py
+      data.py
+      util/
       checkpoints/
         model/
           anime_style/
@@ -110,11 +114,16 @@ my-whiteboard-project/
             netG_A_latest.pth        # 可选
           opensketch_style/
             netG_A_latest.pth        # 可选
-    Anime2Sketch/
+    Anime2Sketch/                      # 必须是完整 clone 的上游项目目录
+      model.py
+      data.py
+      utils.py
       weights/
         netG.pth
         improved.bin                 # 可选，有则优先使用
 ```
+
+注意：`tools/informative-drawings/` 和 `tools/Anime2Sketch/` 不是只放权重的空目录，而是需要完整下载对应上游仓库。Skill 调用的 engine wrapper 会 `import` 这些仓库里的 Python 模块；如果只放 `*.pth` / `*.bin`，模型无法运行。
 
 最小可用目录：
 
