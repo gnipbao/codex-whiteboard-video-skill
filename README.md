@@ -1,6 +1,11 @@
 # Codex Whiteboard Video Skill
 
-中文 | [English](#english)
+<p align="center">
+  <a href="#中文"><kbd>中文</kbd></a>
+  <a href="#english"><kbd>English</kbd></a>
+</p>
+
+## 中文
 
 这是 `whiteboard-video-engine` 的 Codex Skill 适配层。它只包含 Skill 指令、示例和一个轻量 CLI wrapper，不包含引擎源码、模型代码或模型权重。
 
@@ -68,6 +73,24 @@ python3 scripts/whiteboard_cli.py render-photo input.jpg \
   --lineart-provider auto \
   --stroke-detail rich
 ```
+
+## Demo
+
+完整媒体文件托管在 engine 仓库，Skill 仓库只引用展示：
+
+<table>
+  <tr>
+    <td width="50%">
+      <strong>输入图 / Input</strong><br>
+      <img src="https://raw.githubusercontent.com/gnipbao/whiteboard-video-engine/main/examples/cases/sports-illustration-anime2sketch/input.jpg" alt="Sports illustration input" width="360">
+    </td>
+    <td width="50%">
+      <strong>输出视频 / Output</strong><br>
+      <video src="https://raw.githubusercontent.com/gnipbao/whiteboard-video-engine/main/examples/cases/sports-illustration-anime2sketch/output.mp4" controls width="360"></video><br>
+      <a href="https://github.com/gnipbao/whiteboard-video-engine/blob/main/examples/cases/sports-illustration-anime2sketch/output.mp4">Open output video</a>
+    </td>
+  </tr>
+</table>
 
 ## 本地线稿模型
 
@@ -138,6 +161,11 @@ MIT. 上游线稿模型有各自许可证和下载条款。
 
 ## English
 
+<p align="center">
+  <a href="#中文"><kbd>中文</kbd></a>
+  <a href="#english"><kbd>English</kbd></a>
+</p>
+
 This repository is the Codex Skill adapter for `whiteboard-video-engine`. It contains only Skill instructions, examples, and a small CLI wrapper. It does not vendor the engine source code, model code, or model weights.
 
 - Engine: <https://github.com/gnipbao/whiteboard-video-engine>
@@ -180,6 +208,24 @@ The wrapper delegates to the installed engine package:
 ```bash
 python3 scripts/whiteboard_cli.py render-photo input.jpg -o out/output.mp4 --duration 15
 ```
+
+### Demo
+
+The media files live in the engine repository. This Skill README embeds them by URL:
+
+<table>
+  <tr>
+    <td width="50%">
+      <strong>Input</strong><br>
+      <img src="https://raw.githubusercontent.com/gnipbao/whiteboard-video-engine/main/examples/cases/sports-illustration-anime2sketch/input.jpg" alt="Sports illustration input" width="360">
+    </td>
+    <td width="50%">
+      <strong>Output</strong><br>
+      <video src="https://raw.githubusercontent.com/gnipbao/whiteboard-video-engine/main/examples/cases/sports-illustration-anime2sketch/output.mp4" controls width="360"></video><br>
+      <a href="https://github.com/gnipbao/whiteboard-video-engine/blob/main/examples/cases/sports-illustration-anime2sketch/output.mp4">Open output video</a>
+    </td>
+  </tr>
+</table>
 
 ### Local Line-Art Models
 
