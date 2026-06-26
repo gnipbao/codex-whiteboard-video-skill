@@ -15,7 +15,7 @@ whiteboard-video-engine is not installed.
 
 Install the engine first:
 
-  python3 -m pip install "git+https://github.com/YOUR_ORG/whiteboard-video-engine.git"
+  python3 -m pip install "git+https://github.com/gnipbao/whiteboard-video-engine.git"
 
 For local development:
 

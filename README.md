@@ -1,67 +1,85 @@
 # Codex Whiteboard Video Skill
 
-Codex skill adapter for `whiteboard-video-engine`.
+中文 | [English](#english)
 
-This repository contains only the Codex skill instructions, examples, and a
-small CLI wrapper. It does not vendor the engine source code or model weights.
+这是 `whiteboard-video-engine` 的 Codex Skill 适配层。它只包含 Skill 指令、示例和一个轻量 CLI wrapper，不包含引擎源码、模型代码或模型权重。
 
-## Repositories
+- Engine: <https://github.com/gnipbao/whiteboard-video-engine>
+- Skill: <https://github.com/gnipbao/codex-whiteboard-video-skill>
+- Author: <https://github.com/gnipbao>
+- 个人介绍 / Bio: <https://ycnj2htgnvdy.feishu.cn/wiki/DOYRws0FmizhDAkkKGicvlpzndh?from=from_copylink>
 
-- Engine: `https://github.com/YOUR_ORG/whiteboard-video-engine`
-- Skill: `https://github.com/YOUR_ORG/codex-whiteboard-video-skill`
+## 安装
 
-Replace `YOUR_ORG` with your GitHub organization or username after publishing.
-
-## Install
-
-Install the engine first:
+先安装引擎：
 
 ```bash
-python3 -m pip install "git+https://github.com/YOUR_ORG/whiteboard-video-engine.git"
+python3 -m pip install "git+https://github.com/gnipbao/whiteboard-video-engine.git"
 ```
 
-For local development:
+本地开发时可以安装本地 engine：
 
 ```bash
 python3 -m pip install -e /path/to/whiteboard-video-engine
 ```
 
-In a restricted network environment, follow the engine README's
-`--no-build-isolation` local install path.
-
-Install the Codex skill:
+再安装 Codex Skill：
 
 ```bash
 mkdir -p ~/.codex/skills
-git clone https://github.com/YOUR_ORG/codex-whiteboard-video-skill.git \
+git clone https://github.com/gnipbao/codex-whiteboard-video-skill.git \
   ~/.codex/skills/whiteboard-video
 ```
 
-For local development without GitHub:
+没有 GitHub 远端时，也可以本地同步：
 
 ```bash
 rsync -a /path/to/codex-whiteboard-video-skill/ \
   ~/.codex/skills/whiteboard-video/
 ```
 
-Verify:
+验证：
 
 ```bash
 python3 ~/.codex/skills/whiteboard-video/scripts/whiteboard_cli.py doctor
 ```
 
-## Local Line-Art Models
+## 使用方式
 
-The skill uses the engine's model provider system. Model code and weights are
-not included in this skill repository.
+在 Codex 里触发：
 
-For uploaded photos and illustrations, follow the engine model setup guide:
+```text
+[$whiteboard-video](/Users/you/.codex/skills/whiteboard-video/SKILL.md)
+```
+
+示例请求：
+
+```text
+[$whiteboard-video](/Users/you/.codex/skills/whiteboard-video/SKILL.md)
+把这张图片转成 15s 手绘白板视频，使用 rich 线稿细节和 asian hand。
+```
+
+Skill 会调用：
+
+```bash
+python3 scripts/whiteboard_cli.py render-photo input.jpg \
+  -o out/output.mp4 \
+  --duration 15 \
+  --lineart-provider auto \
+  --stroke-detail rich
+```
+
+## 本地线稿模型
+
+Skill 使用 engine 的 provider 系统。模型代码和权重不包含在本仓库。
+
+请按 engine 文档安装：
 
 ```text
 whiteboard-video-engine/docs/MODELS.md
 ```
 
-Expected model layout when using local auto-discovery:
+常见目录结构：
 
 ```text
 your-project/
@@ -74,37 +92,37 @@ your-project/
   .venv-lineart/
 ```
 
-You can also configure commands with:
+也可以显式配置：
 
 ```bash
 export WHITEBOARD_INFORMATIVE_DRAWINGS_CMD="python /path/to/run_informative_drawings.py {input} {output}"
 export WHITEBOARD_ANIME2SKETCH_CMD="python /path/to/run_anime2sketch.py {input} {output}"
 ```
 
-## Usage
+## Example Case
 
-Inside Codex, mention:
+案例说明放在：
 
 ```text
-[$whiteboard-video](/Users/you/.codex/skills/whiteboard-video/SKILL.md)
+examples/cases/sports-illustration-anime2sketch/README.md
 ```
 
-The skill will call:
+完整输入图和输出视频在 engine 仓库中：
 
-```bash
-python3 scripts/whiteboard_cli.py render-photo input.jpg -o out/output.mp4 --duration 15
+```text
+whiteboard-video-engine/examples/cases/sports-illustration-anime2sketch/
 ```
 
-The wrapper delegates to the installed engine package.
+Skill 仓库保持轻量，避免把视频和上传素材打包进 Codex Skill。
 
-## What This Repo Contains
+## 仓库包含
 
-- `SKILL.md`: Codex instructions.
-- `scripts/whiteboard_cli.py`: wrapper around installed engine CLI.
-- `references/`: workflow notes.
-- `examples/`: small demo inputs.
+- `SKILL.md`：Codex 使用说明。
+- `scripts/whiteboard_cli.py`：调用已安装 engine 的 wrapper。
+- `references/`：工作流说明。
+- `examples/`：轻量示例和案例说明。
 
-## What This Repo Does Not Contain
+## 仓库不包含
 
 - engine source code
 - PyTorch model code
@@ -114,4 +132,61 @@ The wrapper delegates to the installed engine package.
 
 ## License
 
-MIT. The upstream line-art models have their own licenses and download terms.
+MIT. 上游线稿模型有各自许可证和下载条款。
+
+---
+
+## English
+
+This repository is the Codex Skill adapter for `whiteboard-video-engine`. It contains only Skill instructions, examples, and a small CLI wrapper. It does not vendor the engine source code, model code, or model weights.
+
+- Engine: <https://github.com/gnipbao/whiteboard-video-engine>
+- Skill: <https://github.com/gnipbao/codex-whiteboard-video-skill>
+- Author: <https://github.com/gnipbao>
+- Bio: <https://ycnj2htgnvdy.feishu.cn/wiki/DOYRws0FmizhDAkkKGicvlpzndh?from=from_copylink>
+
+### Install
+
+Install the engine first:
+
+```bash
+python3 -m pip install "git+https://github.com/gnipbao/whiteboard-video-engine.git"
+```
+
+Install the Codex Skill:
+
+```bash
+mkdir -p ~/.codex/skills
+git clone https://github.com/gnipbao/codex-whiteboard-video-skill.git \
+  ~/.codex/skills/whiteboard-video
+```
+
+Verify:
+
+```bash
+python3 ~/.codex/skills/whiteboard-video/scripts/whiteboard_cli.py doctor
+```
+
+### Usage
+
+Mention this skill inside Codex:
+
+```text
+[$whiteboard-video](/Users/you/.codex/skills/whiteboard-video/SKILL.md)
+```
+
+The wrapper delegates to the installed engine package:
+
+```bash
+python3 scripts/whiteboard_cli.py render-photo input.jpg -o out/output.mp4 --duration 15
+```
+
+### Local Line-Art Models
+
+Follow the engine model setup guide:
+
+```text
+whiteboard-video-engine/docs/MODELS.md
+```
+
+The skill repository stays lightweight and does not include videos, user uploads, model repositories, or model weights.

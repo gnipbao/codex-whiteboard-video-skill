@@ -18,7 +18,7 @@ There is no edge-detection fallback. If neither neural model is installed, `extr
 Install the engine before using this skill:
 
 ```bash
-python3 -m pip install "git+https://github.com/YOUR_ORG/whiteboard-video-engine.git"
+python3 -m pip install "git+https://github.com/gnipbao/whiteboard-video-engine.git"
 ```
 
 For local engine development:
