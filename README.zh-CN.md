@@ -88,24 +88,44 @@ python3 scripts/whiteboard_cli.py render-photo input.jpg \
 
 Skill 使用 engine 的 provider 系统。本仓库不包含模型代码和权重。
 
+模型应放在 Codex 执行命令的项目目录中，不要放进 `~/.codex/skills/whiteboard-video`。
+
 推荐目录结构：
 
 ```text
-your-project/
+my-whiteboard-project/
+  .venv-lineart/
+    bin/
+      python
   tools/
     lineart/
       run_informative_drawings.py
       run_anime2sketch.py
     informative-drawings/
+      checkpoints/
+        model/
+          anime_style/
+            netG_A_latest.pth
+          contour_style/
+            netG_A_latest.pth        # 可选
+          opensketch_style/
+            netG_A_latest.pth        # 可选
     Anime2Sketch/
-  .venv-lineart/
+      weights/
+        netG.pth
+        improved.bin                 # 可选，有则优先使用
 ```
+
+最小可用目录：
+
+- Informative Drawings：需要 `tools/lineart/run_informative_drawings.py` 和 `tools/informative-drawings/checkpoints/model/anime_style/netG_A_latest.pth`。
+- Anime2Sketch：需要 `tools/lineart/run_anime2sketch.py` 和 `tools/Anime2Sketch/weights/netG.pth` 或 `tools/Anime2Sketch/weights/improved.bin`。
 
 也可以显式配置命令：
 
 ```bash
-export WHITEBOARD_INFORMATIVE_DRAWINGS_CMD="python /path/to/run_informative_drawings.py {input} {output}"
-export WHITEBOARD_ANIME2SKETCH_CMD="python /path/to/run_anime2sketch.py {input} {output}"
+export WHITEBOARD_INFORMATIVE_DRAWINGS_CMD="/abs/project/.venv-lineart/bin/python /abs/project/tools/lineart/run_informative_drawings.py {input} {output}"
+export WHITEBOARD_ANIME2SKETCH_CMD="/abs/project/.venv-lineart/bin/python /abs/project/tools/lineart/run_anime2sketch.py {input} {output}"
 ```
 
 模型安装说明见：[whiteboard-video-engine/docs/MODELS.md](https://github.com/gnipbao/whiteboard-video-engine/blob/main/docs/MODELS.md)。

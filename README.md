@@ -94,24 +94,44 @@ python3 scripts/whiteboard_cli.py render-photo input.jpg \
 
 The Skill uses the engine provider system. Model code and weights are not included here.
 
-Expected local layout:
+Put models in the project directory where Codex runs the command. Do not put model repositories or weights inside `~/.codex/skills/whiteboard-video`.
+
+Recommended layout:
 
 ```text
-your-project/
+my-whiteboard-project/
+  .venv-lineart/
+    bin/
+      python
   tools/
     lineart/
       run_informative_drawings.py
       run_anime2sketch.py
     informative-drawings/
+      checkpoints/
+        model/
+          anime_style/
+            netG_A_latest.pth
+          contour_style/
+            netG_A_latest.pth        # optional
+          opensketch_style/
+            netG_A_latest.pth        # optional
     Anime2Sketch/
-  .venv-lineart/
+      weights/
+        netG.pth
+        improved.bin                 # optional; preferred when available
 ```
+
+Minimum valid setups:
+
+- Informative Drawings: `tools/lineart/run_informative_drawings.py` plus `tools/informative-drawings/checkpoints/model/anime_style/netG_A_latest.pth`.
+- Anime2Sketch: `tools/lineart/run_anime2sketch.py` plus `tools/Anime2Sketch/weights/netG.pth` or `tools/Anime2Sketch/weights/improved.bin`.
 
 You can also set explicit commands:
 
 ```bash
-export WHITEBOARD_INFORMATIVE_DRAWINGS_CMD="python /path/to/run_informative_drawings.py {input} {output}"
-export WHITEBOARD_ANIME2SKETCH_CMD="python /path/to/run_anime2sketch.py {input} {output}"
+export WHITEBOARD_INFORMATIVE_DRAWINGS_CMD="/abs/project/.venv-lineart/bin/python /abs/project/tools/lineart/run_informative_drawings.py {input} {output}"
+export WHITEBOARD_ANIME2SKETCH_CMD="/abs/project/.venv-lineart/bin/python /abs/project/tools/lineart/run_anime2sketch.py {input} {output}"
 ```
 
 See the engine model guide: [whiteboard-video-engine/docs/MODELS.md](https://github.com/gnipbao/whiteboard-video-engine/blob/main/docs/MODELS.md).
