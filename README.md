@@ -1,17 +1,31 @@
+<p align="center">
+  <img src="docs/assets/hero.png" alt="Whiteboard Video Engine" width="960">
+</p>
+
 # Codex Whiteboard Video Skill
 
-Languages: English | [Chinese](README.zh-CN.md)
+[中文](README.zh-CN.md)
 
-Codex Skill adapter for `whiteboard-video-engine`. This repository contains only Skill instructions, examples, and a small CLI wrapper. It does not vendor the engine source code, model code, or model weights.
+<p>
+  <img alt="Codex Skill" src="https://img.shields.io/badge/codex-skill-111827">
+  <img alt="Engine dependency" src="https://img.shields.io/badge/engine-whiteboard--video--engine-blue">
+  <img alt="License MIT" src="https://img.shields.io/badge/license-MIT-green">
+</p>
 
-- Engine: <https://github.com/gnipbao/whiteboard-video-engine>
-- Skill: <https://github.com/gnipbao/codex-whiteboard-video-skill>
-- Author: <https://github.com/gnipbao>
-- Bio: <https://ycnj2htgnvdy.feishu.cn/wiki/DOYRws0FmizhDAkkKGicvlpzndh?from=from_copylink>
+Codex Skill adapter for [whiteboard-video-engine](https://github.com/gnipbao/whiteboard-video-engine). It lets Codex call the installed engine to generate local whiteboard animation videos from images, SVGs, line art, or scripts.
+
+This repository contains the Skill instructions and a thin CLI wrapper only. Rendering, model providers, stroke tracing, and video composition live in the engine repository.
+
+## Repository Split
+
+| Repository | Responsibility |
+| --- | --- |
+| [whiteboard-video-engine](https://github.com/gnipbao/whiteboard-video-engine) | Python package, renderer, CLI, model wrappers, tests, docs |
+| [codex-whiteboard-video-skill](https://github.com/gnipbao/codex-whiteboard-video-skill) | Codex `SKILL.md`, workflow references, wrapper script |
 
 ## Demo
 
-The media files live in the engine repository. This README embeds a GIF preview because GitHub does not reliably render inline MP4 with `<video>`.
+The full demo assets are maintained in the engine repository.
 
 <table>
   <tr>
@@ -24,17 +38,31 @@ The media files live in the engine repository. This README embeds a GIF preview 
       <a href="https://github.com/gnipbao/whiteboard-video-engine/blob/main/examples/cases/sports-illustration-anime2sketch/output.mp4">
         <img src="https://raw.githubusercontent.com/gnipbao/whiteboard-video-engine/main/examples/cases/sports-illustration-anime2sketch/output-preview.gif" alt="Whiteboard animation output preview" width="360">
       </a><br>
-      <a href="https://github.com/gnipbao/whiteboard-video-engine/blob/main/examples/cases/sports-illustration-anime2sketch/output.mp4">Watch full MP4</a>
+      <a href="https://github.com/gnipbao/whiteboard-video-engine/blob/main/examples/cases/sports-illustration-anime2sketch/output.mp4">Open MP4</a>
     </td>
   </tr>
 </table>
 
-## Install
+## Installation
 
 Install the engine first:
 
 ```bash
 python3 -m pip install "git+https://github.com/gnipbao/whiteboard-video-engine.git"
+```
+
+Install the Skill:
+
+```bash
+mkdir -p ~/.codex/skills
+git clone https://github.com/gnipbao/codex-whiteboard-video-skill.git \
+  ~/.codex/skills/whiteboard-video
+```
+
+Verify the wrapper:
+
+```bash
+python3 ~/.codex/skills/whiteboard-video/scripts/whiteboard_cli.py doctor
 ```
 
 For local engine development:
@@ -43,43 +71,16 @@ For local engine development:
 python3 -m pip install -e /path/to/whiteboard-video-engine
 ```
 
-Install the Codex Skill:
+## Usage in Codex
 
-```bash
-mkdir -p ~/.codex/skills
-git clone https://github.com/gnipbao/codex-whiteboard-video-skill.git \
-  ~/.codex/skills/whiteboard-video
-```
-
-For local development without GitHub:
-
-```bash
-rsync -a /path/to/codex-whiteboard-video-skill/ \
-  ~/.codex/skills/whiteboard-video/
-```
-
-Verify:
-
-```bash
-python3 ~/.codex/skills/whiteboard-video/scripts/whiteboard_cli.py doctor
-```
-
-## Usage
-
-Mention this skill inside Codex:
-
-```text
-[$whiteboard-video](/Users/you/.codex/skills/whiteboard-video/SKILL.md)
-```
-
-Example request:
+Mention the installed Skill:
 
 ```text
 [$whiteboard-video](/Users/you/.codex/skills/whiteboard-video/SKILL.md)
 Convert this image into a 15-second whiteboard animation with rich stroke detail and the asian hand cursor.
 ```
 
-The wrapper delegates to the installed engine package:
+The wrapper delegates to the installed engine:
 
 ```bash
 python3 scripts/whiteboard_cli.py render-photo input.jpg \
@@ -89,17 +90,11 @@ python3 scripts/whiteboard_cli.py render-photo input.jpg \
   --stroke-detail rich
 ```
 
-## Local Line-Art Models
+## Local Models
 
-This Skill uses the engine provider system. Model code and weights are not included in this repository.
+The Skill uses the engine provider system. Model code and weights are not included here.
 
-Follow the engine model setup guide:
-
-```text
-whiteboard-video-engine/docs/MODELS.md
-```
-
-Common local layout:
+Expected local layout:
 
 ```text
 your-project/
@@ -112,38 +107,30 @@ your-project/
   .venv-lineart/
 ```
 
-You can also configure commands explicitly:
+You can also set explicit commands:
 
 ```bash
 export WHITEBOARD_INFORMATIVE_DRAWINGS_CMD="python /path/to/run_informative_drawings.py {input} {output}"
 export WHITEBOARD_ANIME2SKETCH_CMD="python /path/to/run_anime2sketch.py {input} {output}"
 ```
 
-## Example Case
+See the engine model guide: [whiteboard-video-engine/docs/MODELS.md](https://github.com/gnipbao/whiteboard-video-engine/blob/main/docs/MODELS.md).
 
-The full demo is maintained in the engine repository:
-
-```text
-whiteboard-video-engine/examples/cases/sports-illustration-anime2sketch/
-```
-
-The Skill repository stays lightweight and does not include videos or uploaded images.
-
-## What This Repo Contains
+## Contents
 
 - `SKILL.md`: Codex instructions.
 - `scripts/whiteboard_cli.py`: wrapper around the installed engine CLI.
 - `references/`: workflow notes.
 - `examples/`: lightweight examples and case notes.
 
-## What This Repo Does Not Contain
+## Not Included
 
 - engine source code
-- PyTorch model code
+- model repositories
 - model weights
 - generated videos
 - user uploads
 
 ## License
 
-MIT. The upstream line-art models have their own licenses and download terms.
+MIT. Upstream model code and weights keep their own licenses.

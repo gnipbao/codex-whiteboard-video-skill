@@ -1,30 +1,38 @@
-# Codex Whiteboard Video Skill
+<p align="center">
+  <img src="docs/assets/hero.png" alt="白板手绘视频引擎" width="960">
+</p>
+
+# Codex 白板视频 Skill
 
 [English](README.md)
 
-这是 `whiteboard-video-engine` 的 Codex Skill 适配层。它只包含 Skill 指令、示例和一个轻量 CLI wrapper，不包含引擎源码、模型代码或模型权重。
+[whiteboard-video-engine](https://github.com/gnipbao/whiteboard-video-engine) 的 Codex Skill 适配层。安装后，Codex 可以直接调用本地引擎，把图片、SVG、线稿或脚本转换成白板手绘视频。
 
-- Engine: <https://github.com/gnipbao/whiteboard-video-engine>
-- Skill: <https://github.com/gnipbao/codex-whiteboard-video-skill>
-- Author: <https://github.com/gnipbao>
-- 个人介绍：<https://ycnj2htgnvdy.feishu.cn/wiki/DOYRws0FmizhDAkkKGicvlpzndh?from=from_copylink>
+本仓库只包含 Skill 指令和轻量 wrapper。渲染、模型 provider、笔画追踪和视频合成都在 engine 仓库中维护。
 
-## Demo
+## 仓库分工
 
-完整媒体文件托管在 engine 仓库。GitHub README 对 `<video>` 内联视频支持不稳定，所以这里使用 GIF 预览，并保留完整 MP4 链接。
+| 仓库 | 职责 |
+| --- | --- |
+| [whiteboard-video-engine](https://github.com/gnipbao/whiteboard-video-engine) | Python 包、渲染器、CLI、模型 wrapper、测试和文档 |
+| [codex-whiteboard-video-skill](https://github.com/gnipbao/codex-whiteboard-video-skill) | Codex `SKILL.md`、工作流说明和 wrapper 脚本 |
+
+## 效果演示
+
+完整演示素材维护在 engine 仓库。
 
 <table>
   <tr>
     <td width="50%">
       <strong>输入图</strong><br>
-      <img src="https://raw.githubusercontent.com/gnipbao/whiteboard-video-engine/main/examples/cases/sports-illustration-anime2sketch/input.jpg" alt="Sports illustration input" width="360">
+      <img src="https://raw.githubusercontent.com/gnipbao/whiteboard-video-engine/main/examples/cases/sports-illustration-anime2sketch/input.jpg" alt="输入插画" width="360">
     </td>
     <td width="50%">
       <strong>输出预览</strong><br>
       <a href="https://github.com/gnipbao/whiteboard-video-engine/blob/main/examples/cases/sports-illustration-anime2sketch/output.mp4">
-        <img src="https://raw.githubusercontent.com/gnipbao/whiteboard-video-engine/main/examples/cases/sports-illustration-anime2sketch/output-preview.gif" alt="Whiteboard animation output preview" width="360">
+        <img src="https://raw.githubusercontent.com/gnipbao/whiteboard-video-engine/main/examples/cases/sports-illustration-anime2sketch/output-preview.gif" alt="白板动画预览" width="360">
       </a><br>
-      <a href="https://github.com/gnipbao/whiteboard-video-engine/blob/main/examples/cases/sports-illustration-anime2sketch/output.mp4">查看完整 MP4</a>
+      <a href="https://github.com/gnipbao/whiteboard-video-engine/blob/main/examples/cases/sports-illustration-anime2sketch/output.mp4">查看 MP4</a>
     </td>
   </tr>
 </table>
@@ -37,13 +45,7 @@
 python3 -m pip install "git+https://github.com/gnipbao/whiteboard-video-engine.git"
 ```
 
-本地开发时可以安装本地 engine：
-
-```bash
-python3 -m pip install -e /path/to/whiteboard-video-engine
-```
-
-再安装 Codex Skill：
+再安装 Skill：
 
 ```bash
 mkdir -p ~/.codex/skills
@@ -51,35 +53,28 @@ git clone https://github.com/gnipbao/codex-whiteboard-video-skill.git \
   ~/.codex/skills/whiteboard-video
 ```
 
-没有 GitHub 远端时，也可以本地同步：
-
-```bash
-rsync -a /path/to/codex-whiteboard-video-skill/ \
-  ~/.codex/skills/whiteboard-video/
-```
-
-验证：
+验证 wrapper：
 
 ```bash
 python3 ~/.codex/skills/whiteboard-video/scripts/whiteboard_cli.py doctor
 ```
 
-## 使用方式
+本地开发 engine 时：
 
-在 Codex 里触发：
+```bash
+python3 -m pip install -e /path/to/whiteboard-video-engine
+```
+
+## 在 Codex 中使用
+
+提及已安装的 Skill：
 
 ```text
 [$whiteboard-video](/Users/you/.codex/skills/whiteboard-video/SKILL.md)
+把这张图片转成 15 秒手绘白板视频，线稿细节使用 rich，手势使用 asian。
 ```
 
-示例请求：
-
-```text
-[$whiteboard-video](/Users/you/.codex/skills/whiteboard-video/SKILL.md)
-把这张图片转成 15s 手绘白板视频，使用 rich 线稿细节和 asian hand。
-```
-
-Skill 会调用：
+底层会调用已安装的 engine：
 
 ```bash
 python3 scripts/whiteboard_cli.py render-photo input.jpg \
@@ -89,17 +84,11 @@ python3 scripts/whiteboard_cli.py render-photo input.jpg \
   --stroke-detail rich
 ```
 
-## 本地线稿模型
+## 本地模型
 
-Skill 使用 engine 的 provider 系统。模型代码和权重不包含在本仓库。
+Skill 使用 engine 的 provider 系统。本仓库不包含模型代码和权重。
 
-请按 engine 文档安装：
-
-```text
-whiteboard-video-engine/docs/MODELS.md
-```
-
-常见目录结构：
+推荐目录结构：
 
 ```text
 your-project/
@@ -112,38 +101,30 @@ your-project/
   .venv-lineart/
 ```
 
-也可以显式配置：
+也可以显式配置命令：
 
 ```bash
 export WHITEBOARD_INFORMATIVE_DRAWINGS_CMD="python /path/to/run_informative_drawings.py {input} {output}"
 export WHITEBOARD_ANIME2SKETCH_CMD="python /path/to/run_anime2sketch.py {input} {output}"
 ```
 
-## Example Case
+模型安装说明见：[whiteboard-video-engine/docs/MODELS.md](https://github.com/gnipbao/whiteboard-video-engine/blob/main/docs/MODELS.md)。
 
-完整 demo 在 engine 仓库中维护：
+## 仓库内容
 
-```text
-whiteboard-video-engine/examples/cases/sports-illustration-anime2sketch/
-```
-
-Skill 仓库保持轻量，不保存视频和上传图片。
-
-## 仓库包含
-
-- `SKILL.md`：Codex 使用说明。
-- `scripts/whiteboard_cli.py`：调用已安装 engine 的 wrapper。
+- `SKILL.md`：Codex 指令。
+- `scripts/whiteboard_cli.py`：调用已安装 engine CLI 的 wrapper。
 - `references/`：工作流说明。
 - `examples/`：轻量示例和案例说明。
 
-## 仓库不包含
+## 不包含
 
-- engine source code
-- PyTorch model code
-- model weights
-- generated videos
-- user uploads
+- engine 源码
+- 模型仓库
+- 模型权重
+- 生成视频
+- 用户上传素材
 
-## License
+## 许可证
 
-MIT. 上游线稿模型有各自许可证和下载条款。
+MIT。上游模型代码和权重遵循各自许可证。
