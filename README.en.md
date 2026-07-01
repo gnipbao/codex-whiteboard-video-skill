@@ -83,12 +83,14 @@ Convert this image into a 15-second whiteboard animation with rich stroke detail
 The wrapper delegates to the installed engine:
 
 ```bash
-python3 scripts/whiteboard_cli.py render-photo input.jpg \
+python3 "${CODEX_HOME:-$HOME/.codex}/skills/whiteboard-video/scripts/whiteboard_cli.py" render-photo input.jpg \
   -o out/output.mp4 \
   --duration 15 \
   --lineart-provider auto \
   --stroke-detail rich
 ```
+
+Always use the installed Skill's absolute wrapper path shown above. Do not call a project-local `whiteboard-video/scripts/whiteboard_cli.py`; stale copies may prepend a bundled `src` directory and shadow the latest installed engine defaults.
 
 ## Local Models
 

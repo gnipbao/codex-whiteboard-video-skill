@@ -77,12 +77,14 @@ python3 -m pip install -e /path/to/whiteboard-video-engine
 底层会调用已安装的 engine：
 
 ```bash
-python3 scripts/whiteboard_cli.py render-photo input.jpg \
+python3 "${CODEX_HOME:-$HOME/.codex}/skills/whiteboard-video/scripts/whiteboard_cli.py" render-photo input.jpg \
   -o out/output.mp4 \
   --duration 15 \
   --lineart-provider auto \
   --stroke-detail rich
 ```
+
+始终使用上面的 Skill 绝对路径。不要调用当前项目中的 `whiteboard-video/scripts/whiteboard_cli.py`；旧副本可能把内置 `src` 放到 Python 路径最前面，从而覆盖已安装 engine 的最新默认值。
 
 ## 本地模型
 
