@@ -27,16 +27,18 @@ For local engine development:
 python3 -m pip install -e /path/to/whiteboard-video-engine
 ```
 
-Run commands from the project root that contains `tools/lineart`, or call this skill's wrapper script by absolute path. The wrapper delegates to the installed engine package. Local model wrappers are auto-discovered from the current working directory.
+Run commands from the project root that contains `tools/lineart`, but always call the installed Skill wrapper by absolute path. The wrapper delegates to the installed engine package while local model wrappers are auto-discovered from the current working directory.
+
+Never call a project-local `whiteboard-video/scripts/whiteboard_cli.py`. Old project copies may prepend a bundled `src` directory and silently shadow the installed engine, causing stale defaults such as the procedural hand cursor to reappear.
 
 ```bash
-MOCK=1 python3 scripts/whiteboard_cli.py run examples/ten-second-demo.md -o /tmp/whiteboard-demo.mp4 --scenes 2 --fps 24 --width 640 --height 360
-python3 scripts/whiteboard_cli.py extract-lineart photo.png -o lineart.png --provider auto
-python3 scripts/whiteboard_cli.py render-photo photo.png -o /tmp/photo-whiteboard.mp4 --duration 15 --fps 30 --lineart-provider auto --stroke-detail rich --hand asian
-python3 scripts/whiteboard_cli.py render-image lineart.png --source-image photo.png --source-fit exact --size-from-image --color-fill contour-wipe -o /tmp/color-fill-whiteboard.mp4 --duration 15 --fps 30 --tail-color 4.5
-python3 scripts/whiteboard_cli.py render-image examples/apple.svg -o /tmp/apple-whiteboard.mp4 --duration 2 --fps 24 --width 640 --height 360 --hand asian
-python3 scripts/whiteboard_cli.py list-hands
-python3 scripts/whiteboard_cli.py doctor
+MOCK=1 python3 "${CODEX_HOME:-$HOME/.codex}/skills/whiteboard-video/scripts/whiteboard_cli.py" run examples/ten-second-demo.md -o /tmp/whiteboard-demo.mp4 --scenes 2 --fps 24 --width 640 --height 360
+python3 "${CODEX_HOME:-$HOME/.codex}/skills/whiteboard-video/scripts/whiteboard_cli.py" extract-lineart photo.png -o lineart.png --provider auto
+python3 "${CODEX_HOME:-$HOME/.codex}/skills/whiteboard-video/scripts/whiteboard_cli.py" render-photo photo.png -o /tmp/photo-whiteboard.mp4 --duration 15 --fps 30 --lineart-provider auto --stroke-detail rich --hand asian
+python3 "${CODEX_HOME:-$HOME/.codex}/skills/whiteboard-video/scripts/whiteboard_cli.py" render-image lineart.png --source-image photo.png --source-fit exact --size-from-image --color-fill contour-wipe -o /tmp/color-fill-whiteboard.mp4 --duration 15 --fps 30 --tail-color 4.5 --hand asian
+python3 "${CODEX_HOME:-$HOME/.codex}/skills/whiteboard-video/scripts/whiteboard_cli.py" render-image examples/apple.svg -o /tmp/apple-whiteboard.mp4 --duration 2 --fps 24 --width 640 --height 360 --hand asian
+python3 "${CODEX_HOME:-$HOME/.codex}/skills/whiteboard-video/scripts/whiteboard_cli.py" list-hands
+python3 "${CODEX_HOME:-$HOME/.codex}/skills/whiteboard-video/scripts/whiteboard_cli.py" doctor
 ```
 
 ## Workflow
@@ -66,7 +68,7 @@ Prefer `MOCK=1` for integration tests and low-cost previews. Real providers are 
 For uploaded photos:
 
 ```bash
-python3 scripts/whiteboard_cli.py extract-lineart source.png \
+python3 "${CODEX_HOME:-$HOME/.codex}/skills/whiteboard-video/scripts/whiteboard_cli.py" extract-lineart source.png \
   --provider auto \
   -o lineart.png
 ```
@@ -74,7 +76,7 @@ python3 scripts/whiteboard_cli.py extract-lineart source.png \
 Then render:
 
 ```bash
-python3 scripts/whiteboard_cli.py render-image lineart.png \
+python3 "${CODEX_HOME:-$HOME/.codex}/skills/whiteboard-video/scripts/whiteboard_cli.py" render-image lineart.png \
   --source-image source.png \
   --source-fit exact \
   --size-from-image \
@@ -88,7 +90,7 @@ python3 scripts/whiteboard_cli.py render-image lineart.png \
 Or use the one-step shortcut:
 
 ```bash
-python3 scripts/whiteboard_cli.py render-photo source.png \
+python3 "${CODEX_HOME:-$HOME/.codex}/skills/whiteboard-video/scripts/whiteboard_cli.py" render-photo source.png \
   -o output.mp4 \
   --duration 15 --fps 30 \
   --lineart-provider auto \
