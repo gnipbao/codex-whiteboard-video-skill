@@ -43,23 +43,24 @@ python3 "${CODEX_HOME:-$HOME/.codex}/skills/whiteboard-video/scripts/whiteboard_
 
 ## Workflow
 
-1. Use `render-photo` for uploaded photos or dense illustrations. It extracts local line art first, then renders with the original image as the color-fill source.
-2. Use `extract-lineart` when you want to inspect or reuse the line-art PNG before rendering.
-3. Use `render-image` when the user already has a clean SVG or line-art PNG.
-4. Use `plan-script` and `run` for script-driven scenes. If a script requires a generated scene image, generate the color scene first, then use local line-art extraction on that color scene.
-5. Use `analyze-image` to estimate stroke count and foreground density.
-6. Use `compose` to concatenate rendered scene clips.
-7. Use `--lineart-provider auto|informative|anime2sketch|anime|manga`. `auto` tries Informative Drawings first, then Anime2Sketch. `manga` is kept only as a compatibility alias for Anime2Sketch.
-8. Configure external deep extractors through environment variables:
+1. For a light-background flat illustration with existing dark outlines, run `scripts/prepare_flat_lineart.py` first. Use the resulting binary PNG as the `render-image` input and keep the color original only as `--source-image`. Read `references/local-lineart.md` for the guarded workflow.
+2. Use `render-photo` for photos, paintings, gradients, dark backgrounds, or dense illustrations that need neural line-art extraction. It extracts local line art first, then renders with the original image as the color-fill source.
+3. Use `extract-lineart` when you want to inspect or reuse neural-model line art before rendering.
+4. Use `render-image` only when the user already has a clean SVG or binary/near-binary line-art PNG.
+5. Use `plan-script` and `run` for script-driven scenes. If a script requires a generated scene image, generate the color scene first, then use local line-art extraction on that color scene.
+6. Use `analyze-image` to estimate stroke count and foreground density.
+7. Use `compose` to concatenate rendered scene clips.
+8. Use `--lineart-provider auto|informative|anime2sketch|anime|manga`. `auto` tries Informative Drawings first, then Anime2Sketch. `manga` is kept only as a compatibility alias for Anime2Sketch.
+9. Configure external deep extractors through environment variables:
    - `WHITEBOARD_INFORMATIVE_DRAWINGS_CMD`
    - `WHITEBOARD_ANIME2SKETCH_CMD`
    Commands may include `{input}` and `{output}` placeholders; otherwise input and output are appended as positional arguments.
-9. Use `--svg-output <line.svg>` with `extract-lineart` or `render-photo` when `vtracer` is installed and you want SVG paths instead of raster skeleton tracing.
-10. Use `--hand asian|black|children|white|procedural|none` to select the hand cursor. Built-in PNG hands keep a fixed orientation and only translate with the pen tip.
-11. Use a color source with the exact same pixel size/aspect/crop as the line art whenever possible, then render with `--source-image <source> --source-fit exact --size-from-image --color-fill contour-wipe`.
-12. Before final color fill, the renderer snaps only darker missing line-art pixels back to the redrawn stroke canvas so small extracted-stroke omissions do not look unfinished. The default snap threshold is `170` to avoid turning soft gray model lines into solid black. Use `--no-lineart-snap` only for debugging.
-13. Use `--stroke-detail rich` by default; use `--stroke-detail max` only when faces/logos/badges still lose too many short strokes.
-14. Use `--draw-text "短标题"` for short hand-drawn title text. The text is converted into strokes and drawn after the image strokes.
+10. Use `--svg-output <line.svg>` with `extract-lineart` or `render-photo` when `vtracer` is installed and you want SVG paths instead of raster skeleton tracing.
+11. Use `--hand asian|black|children|white|procedural|none` to select the hand cursor. Built-in PNG hands keep a fixed orientation and only translate with the pen tip.
+12. Use a color source with the exact same pixel size/aspect/crop as the line art whenever possible, then render with `--source-image <source> --source-fit exact --size-from-image --color-fill contour-wipe`.
+13. Before final color fill, the renderer snaps only darker missing line-art pixels back to the redrawn stroke canvas so small extracted-stroke omissions do not look unfinished. The default snap threshold is `170` to avoid turning soft gray model lines into solid black. Use `--no-lineart-snap` only for debugging.
+14. Use `--stroke-detail rich` by default; use `--stroke-detail max` only when faces/logos/badges still lose too many short strokes.
+15. Use `--draw-text "短标题"` for short hand-drawn title text. The text is converted into strokes and drawn after the image strokes.
 
 Prefer `MOCK=1` for integration tests and low-cost previews. Real providers are lazy-loaded and require configured provider credentials only for script-to-scene image or narration generation, not for uploaded-photo line-art extraction.
 
@@ -100,6 +101,12 @@ python3 "${CODEX_HOME:-$HOME/.codex}/skills/whiteboard-video/scripts/whiteboard_
 
 ## Quality Rules
 
+- Never pass a color raster directly to `render-image` as its line-art input. Skeletonizing solid color regions creates medial-axis spiderwebs inside faces, clothes, and other fills.
+- Keep drawing geometry and color fill separate: the first positional image supplies strokes; `--source-image` supplies final color only.
+- For flat illustrations, visually inspect the prepared binary PNG before rendering. Reject it if filled regions remain or important outlines disappear.
+- Treat the preprocessor's foreground-density guard as a routing signal. If it fails, use a neural provider instead of relaxing the limit until color fills become foreground.
+- Verify at least one mid-draw frame before delivery. A clean final colored frame does not prove the stroke geometry is clean.
+- Default to `--hand none` for raster images with many disconnected strokes. Use a hand only when stroke ordering and pen-up travel look acceptable in a preview.
 - Do not use image2 for line-art conversion. Local line-art extraction is the source of truth.
 - Prefer `Informative Drawings` `anime_style` for quality when installed.
 - Prefer `Anime2Sketch` for illustration/anime-like inputs or when Informative Drawings is unavailable.

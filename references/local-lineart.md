@@ -2,6 +2,51 @@
 
 Use local extraction for uploaded photos and dense illustrations. Do not use image2 for line-art conversion.
 
+## Flat Illustrations With Existing Ink
+
+For white/light-background artwork with dark outlines and flat fills, select the
+existing dark ink before skeleton tracing. This is thresholded ink selection,
+not an edge-detection fallback.
+
+Never use the color original as the positional `render-image` input. Solid
+color regions produce medial-axis spiderwebs when skeletonized.
+
+Prepare a guarded binary line-art PNG:
+
+```bash
+python3 "${CODEX_HOME:-$HOME/.codex}/skills/whiteboard-video/scripts/prepare_flat_lineart.py" input.png \
+  -o work/lineart.png \
+  --width 960 \
+  --report work/lineart-report.json
+```
+
+The script searches thresholds 45-85 and chooses the darkest-ink cutoff that
+keeps foreground density at or below 5.5%. It fails when even the lowest cutoff
+is too dense; route that source to a neural line-art provider instead of forcing
+the threshold.
+
+Then analyze and render with geometry/color separation:
+
+```bash
+python3 "${CODEX_HOME:-$HOME/.codex}/skills/whiteboard-video/scripts/whiteboard_cli.py" analyze-image \
+  work/lineart.png -o work/analysis.json --stroke-detail rich
+
+python3 "${CODEX_HOME:-$HOME/.codex}/skills/whiteboard-video/scripts/whiteboard_cli.py" render-image \
+  work/lineart.png \
+  --source-image input.png \
+  --source-fit exact \
+  --size-from-image \
+  --stroke-detail rich \
+  --hand none \
+  -o output.mp4 \
+  --duration 14 --fps 24 --tail-color 3.5
+```
+
+Inspect the binary PNG and a mid-draw video frame. The line-art foreground
+should contain outlines and intentional hatching only, with no filled face,
+clothing, or background regions. Colored lettering may be absent during the
+drawing phase and return during final color fill.
+
 The model wrappers and setup guide live in the engine repository:
 `whiteboard-video-engine/docs/MODELS.md`.
 
