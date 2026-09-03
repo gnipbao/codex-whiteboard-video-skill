@@ -27,9 +27,10 @@ script
 
 The color frame and extracted line art must remain pixel-registered. GPT Image
 2 is never the production line-art generator, and text is never burned into
-generated images. Sparse labels are rendered locally and independently so they
-do not affect object grouping. The pipeline always writes an editable SRT and
-leaves the composed picture clean by default; `--burn-subtitles` optionally
+generated images. Sparse labels are rendered locally as late scene-video pixels;
+they never enter the generated storyboard, extracted line art, or object
+grouping. The pipeline always writes an editable SRT and leaves the composed
+picture free of narration subtitles by default; `--burn-subtitles` optionally
 renders that same SRT into the final delivery MP4 after composition.
 
 ## Artifact Layout
@@ -82,7 +83,7 @@ in command history, prompts, committed files, or generated project metadata.
   Do not redirect credentials to another endpoint. The default speaker is
   `zh_female_vv_uranus_bigtts`; replace it only with a speaker enabled for the
   user's account. The provider requests `audio_params.enable_subtitle=true`;
-  returned sentence/word timestamps pace drawing and produce the SRT.
+  valid returned sentence/word timestamps pace drawing and produce the SRT.
 
 Run the complete color-to-line-art path:
 
@@ -134,11 +135,14 @@ and atomically replaces the requested output. If FFmpeg/libass fails, the clean
 MP4 and sidecar SRT remain available.
 
 In a narrated run, measured speech duration controls the scene clock; the
-scene-plan `duration_sec` is retained for silent renders. Provider words are
-grouped into short phrase beats. Visual progress is proportional to actual
-spoken time, and gaps between phrases hold the drawing briefly. The final
-visual tail remains subtitle-free. Composition requires one narration file per
-scene so a missing middle track can never pull later speech forward.
+scene-plan `duration_sec` is retained for silent renders. Valid provider words
+are grouped into short phrase beats. Visual progress is proportional to actual
+spoken time, and gaps between phrases hold the drawing briefly. If provider
+timing is invalid or absent, valid authored cues are retained; only when neither
+source exists are deterministic estimated phrases used for the SRT while the
+drawing stays on its continuous clock. The final visual tail remains
+subtitle-free. Composition requires one narration file per scene so a missing
+middle track can never pull later speech forward.
 
 Additional Doubao controls are available through
 `DOUBAO_TTS_FORMAT`, `DOUBAO_TTS_SAMPLE_RATE`,
@@ -191,10 +195,12 @@ Within each inferred spatial block, the renderer draws a coarse structural
 pass, adds local detail, then reveals that block's original crayon color from
 left to right. Short annotations reveal character by character with a brief
 pencil-like wipe only after the picture is readable. They live on a separate
-overlay timeline and never become image strokes. Phase and block windows
-overlap slightly to avoid stop-start motion. With timing cues, spoken intervals
-advance this shared coarse/detail/color/annotation clock and pauses briefly hold
-the picture. Without cues, the original continuous clock is preserved.
+overlay timeline and never become image strokes. They intentionally become
+part of the scene-video pixels, separate from the optional final SRT burn-in.
+Phase and block windows overlap slightly to avoid stop-start motion. With timing
+cues, cue intervals advance this shared coarse/detail/color/annotation clock and
+gaps briefly hold the picture. Without cues, the original continuous clock is
+preserved.
 
 `target_blocks` is an upper-bound preference, not a quota. Connected people,
 props, buildings, and structural bridges remain indivisible; only objects with
@@ -259,8 +265,9 @@ python3 "$CLI" list-hands
 - Real image mode: GPT Image 2 produces a color storyboard, followed by local
   Informative Drawings or Anime2Sketch extraction from the same source.
 - `--tts-provider doubao`: Doubao Voice 2 / Seed-TTS 2 narration via the V3 SSE
-  API, using either new-console or legacy credentials. Exact Chinese/English
-  sentence timing drives the animation and SRT when the selected voice returns it.
+  API, using either new-console or legacy credentials. Valid Chinese/English
+  sentence timing drives the animation and SRT when the selected voice returns it;
+  otherwise valid authored cues remain available as the fallback.
 - `--tts-provider edge`: Edge TTS narration.
 - `--tts-provider none`: no TTS initialization and a silent final MP4 whose
   durations come from the scene plan.
