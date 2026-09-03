@@ -15,6 +15,7 @@ If the engine lives in a virtual environment, invoke the wrapper with that envir
 
 ```text
 script
+  -> resolve one of 30 visual styles and optional story theme
   -> scene plan and narration
   -> gpt-image-2 COLOR storyboard PNG
   -> Informative Drawings / Anime2Sketch line art from that same PNG
@@ -48,10 +49,139 @@ work/<project_id>/
 The final MP4 path is supplied with `-o`; an SRT with the same basename is
 written beside it.
 
+`project.json` stores `visual_style_id`, the complete immutable
+`visual_style_snapshot`, `visual_theme`, and the resolved line/fill/block
+controls. A resumed job reuses that snapshot when no new style option is
+provided, so a later library update cannot silently restyle an existing project.
+Changing the selected recipe, its semantic fields, or `--theme` invalidates the
+planning fingerprint and affected downstream artifacts.
+
 For timing-capable providers, `audio/scene_NN.alignment.json` stores the exact
 sentence and word intervals used by both the renderer and SRT writer. It is a
 cache artifact, not authored input, and its fingerprint includes narration,
 voice, provider identity, and output-affecting synthesis settings.
+
+## Visual Style Resolution
+
+The engine ships 30 media-named recipes with three whiteboard compatibility
+levels: 15 `native`, 9 `adaptive`, and 6 `experimental`. `native` recipes have
+clear recoverable outlines and separated color regions. `adaptive` recipes use
+style-specific softer, denser, or dry-brush settings and should be previewed.
+`experimental` recipes deliberately use features such as dense scribbles,
+halftones, solid black masses, collage, weak outlines, or pixel jaggies that can
+stress skeleton tracing.
+
+The stable default is `warm-crayon-storybook`, optionally configured through
+`WHITEBOARD_STYLE`. Inspect the catalog and locally computed recommendations:
+
+```bash
+python3 "$CLI" list-styles
+python3 "$CLI" list-styles --compatibility native
+python3 "$CLI" list-styles --json
+python3 "$CLI" recommend-styles story.md --limit 5
+python3 "$CLI" recommend-styles story.md --limit 5 --json
+```
+
+Run `recommend-styles` before a new story render, but do not turn it into a
+mandatory clarification. Honor an explicit choice; use `--style auto` when the
+user delegates selection; otherwise keep the stable default unless a clearly
+better native recommendation follows directly from the requested subject. State
+the resolved choice briefly and continue.
+
+Style selectors belong only to `plan-script` and `run`. `plan-script` applies
+the semantic prompt fields; `run` applies both those fields and the recipe's
+renderer defaults. `render-photo` and `render-image` do not load style recipes
+and reject `--style`, `--custom-style`, `--custom-style-file`, and `--theme`.
+
+`--style` accepts a stable id, order number, Chinese or English name, registered
+alias, or `auto`. An inline description and a reusable file are also supported:
+
+```bash
+python3 "$CLI" run story.md -o /tmp/story.mp4 --style auto
+
+python3 "$CLI" run story.md -o /tmp/story.mp4 \
+  --custom-style "Loose blue-pencil travel sketch, one warm-orange accent, broad white space"
+
+python3 "$CLI" run story.md -o /tmp/story.mp4 \
+  --custom-style-file /absolute/path/to/style.json \
+  --theme "Quiet early morning with restrained optimism"
+```
+
+`--style`, `--custom-style`, and `--custom-style-file` are mutually exclusive.
+`--theme` can accompany any one of them and adds story-specific mood or art
+direction. It is capped independently and cannot remove the production contract.
+An inline description is capped at 4,000 characters; a custom file is capped at
+64 KiB and may contain plain UTF-8 text or a constrained JSON object.
+
+A reusable JSON recipe should inherit a tested built-in base and override only
+what the new medium needs:
+
+```json
+{
+  "extends": "colored-pencil-diary",
+  "id": "custom-blue-pencil-travel-diary",
+  "name_zh": "蓝铅笔旅行日记",
+  "name_en": "Blue-pencil travel diary",
+  "family": "自定义彩铅叙事",
+  "summary": "松弛蓝铅笔轮廓和少量暖橙点色。",
+  "compatibility": "native",
+  "planner_guidance": "Stage each beat as one candid travel memory with complete people and naturally separated props.",
+  "aesthetic": "Loose blue-pencil contours with visible pressure variation and broad untouched space.",
+  "paper": "Clean warm-white drawing paper without a photographed desk or page frame.",
+  "palette": "Prussian blue and dusty cyan with one restrained warm-orange accent.",
+  "avoid": "photorealism, glossy paint, dense scenery, generated writing, logos, cropped subjects",
+  "render": {
+    "block_fill_style": "dry-brush",
+    "stroke_detail": "rich",
+    "line_thickness": 0,
+    "line_art_snap": true,
+    "line_art_snap_threshold": 236,
+    "max_draw_blocks": 5,
+    "draw_blocks": 3,
+    "block_overlap": 0.18,
+    "block_order": "reading"
+  }
+}
+```
+
+Supported custom JSON top-level fields are `extends`, `schema_version`, `id`,
+`order`, `name_zh`, `name_en`, `family`, `summary`, `best_for`, `aliases`,
+`compatibility`, `planner_guidance`, `aesthetic`, `paper`, `palette`, `avoid`,
+and `render`. If supplied, `id` must begin with `custom-`; otherwise the engine
+derives a stable custom id. `provenance` is intentionally not accepted from the
+file. The engine records the resolved recipe provenance as user-authored.
+
+Supported render values are deliberately bounded: `block_fill_style` is one of
+`crayon|clean|soft-wash|dry-brush`; `stroke_detail` is
+`balanced|rich|max`; `line_thickness` is `0..16`; snap threshold is
+`1..254`; block counts are `1..24` (`draw_blocks` may be `null`); overlap is
+`0..0.65`; and block order is `reading|source`.
+
+For `run`, omitting renderer controls inherits these values from the resolved
+style snapshot. The complete per-run override surface is:
+
+- `--block-fill-style crayon|clean|soft-wash|dry-brush`
+- `--stroke-detail balanced|rich|max`
+- `--line-thickness 0..16`, where `0` requests automatic source-aware sizing
+- `--line-art-snap` / `--no-line-art-snap` and
+  `--line-art-snap-threshold 1..254`
+- `--max-draw-blocks N`, `--draw-blocks N` or `0` for automatic
+  grouping, `--block-overlap 0..0.65`, and `--block-order reading|source`
+- `--block-sequence 1,0,...` for an inspected explicit inferred-block order;
+  unlike the preceding fields, this is a run-time instruction rather than a
+  style-recipe value
+
+The similarly named single-image controls have fixed command defaults rather
+than style inheritance: `render-photo` and `render-image` default to
+`--line-thickness 0`, `--stroke-detail rich`, `--block-fill-style crayon`, six
+maximum inferred blocks, `0.08` overlap, reading order, and enabled line-art
+snap. Their snap spellings are `--no-lineart-snap` and
+`--lineart-snap-threshold`; do not substitute the `run` spellings above.
+
+Recipes control both image prompts and real renderer behavior; they are not
+cosmetic labels. They contain text and numeric parameters only, use generic
+media/production-method names rather than artist names, and do not bundle or
+fetch third-party sample images, reference boards, brushes, or textures.
 
 ## Offline Mock Preview
 
@@ -91,16 +221,21 @@ Run the complete color-to-line-art path:
 python3 "$CLI" run story.md \
   -o /tmp/story.mp4 \
   --scenes 6 --fps 30 --width 1920 --height 1080 \
+  --style warm-crayon-storybook \
   --image-model gpt-image-2 --image-quality low \
   --scene-assets color-to-lineart --lineart-provider auto \
-  --animation-preset block-speedpaint --draw-blocks 4 --block-overlap 0.16 \
+  --animation-preset block-speedpaint \
   --tts-provider none
 ```
 
 The `run` defaults are 30fps, `gpt-image-2`, `image-quality=low`, no burned narration,
-`block-speedpaint`, a preference of at most four natural spatial blocks, and
-`0.16` block overlap. Connected objects are never split to reach that count.
-Use `--draw-blocks 0` for uncapped automatic grouping. Use `--image-quality medium` for final frames when
+and `block-speedpaint`. Fill, line, snap, and natural-block values inherit the
+resolved style snapshot when their `run` overrides are omitted. The stable
+`warm-crayon-storybook` recipe currently resolves to automatic line width, rich
+stroke detail, crayon fill, at most four preferred natural blocks, and `0.16`
+overlap; another style can resolve differently. Connected objects are never
+split to reach a count. Use `--draw-blocks 0` for automatic grouping up to the
+resolved `max_draw_blocks`. Use `--image-quality medium` for final frames when
 needed. Use `--tts-provider none` for a silent master, or select Doubao/Edge and
 pass `--voice <speaker-id>`. Both modes produce a sidecar SRT. Add
 `--burn-subtitles` to bake that SRT into the final `-o` MP4 while retaining the
@@ -218,10 +353,11 @@ python3 "$CLI" render-photo scene_01.png \
   --hand asian
 ```
 
-- `--max-draw-blocks`: cap automatic grouping; default `6`.
-- `--draw-blocks`: preferred maximum natural block count; never cuts connected objects to reach it.
-- `--block-order reading|source`: select automatic order; default `reading`.
-- `--block-overlap`: overlap adjacent windows; standalone `render-photo`/`render-image` default `0.08`, full `run` default `0.16`.
+- For this standalone `render-photo` example, `--max-draw-blocks` defaults to
+  `6`, `--draw-blocks` has no preferred-count override, `--block-order` defaults
+  to `reading`, and `--block-overlap` defaults to `0.08`.
+- `--draw-blocks`: preferred maximum natural block count; never cuts connected
+  objects to reach it.
 - `--block-sequence 1,0`: explicit inferred block-ID order; use only after
   inspection because duplicates and unknown IDs are errors.
 - `annotations`: preferred scene-plan mechanism for 2–5 character explanatory
@@ -231,7 +367,9 @@ python3 "$CLI" render-photo scene_01.png \
   full `run` subtitles come only from the generated sidecar SRT and are burned
   only when `--burn-subtitles` is explicit.
 
-Full `run` also accepts these block controls. Real runs do not accept
+Full `run` also accepts these block controls, but omitted values inherit the
+selected style rather than the standalone defaults above; use the complete
+override list under Visual Style Resolution. Real runs do not accept
 `direct-lineart`; that mode is deliberately limited to Mock previews because
 the real image provider creates color storyboards.
 
@@ -245,6 +383,8 @@ stages instead of reusing stale output.
 
 ```bash
 python3 "$CLI" plan-script examples/ten-second-demo.md -o /tmp/scenes.json --scenes 2
+python3 "$CLI" list-styles --compatibility native
+python3 "$CLI" recommend-styles examples/ten-second-demo.md --limit 5
 python3 "$CLI" analyze-image examples/apple.svg -o /tmp/apple-analysis.json --width 640 --height 360
 python3 "$CLI" extract-lineart source.png -o /tmp/lineart.png --provider auto
 python3 "$CLI" render-photo source.png -o /tmp/photo.mp4 --duration 15 --fps 30 --lineart-provider auto --hand asian

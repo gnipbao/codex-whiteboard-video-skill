@@ -12,7 +12,7 @@
   <img alt="License MIT" src="https://img.shields.io/badge/license-MIT-green">
 </p>
 
-Codex Skill adapter for [whiteboard-video-engine](https://github.com/gnipbao/whiteboard-video-engine). It lets Codex call the installed engine to generate local whiteboard animation videos from images, SVGs, line art, or scripts.
+Codex Skill adapter for [whiteboard-video-engine](https://github.com/gnipbao/whiteboard-video-engine). It lets Codex call the installed engine to generate local whiteboard animation videos from images, SVGs, line art, or scripts, with 30 built-in visual styles that can be selected, recommended, or extended.
 
 This repository contains the Skill instructions and a thin CLI wrapper only. Rendering, model providers, stroke tracing, and video composition live in the engine repository.
 
@@ -91,6 +91,110 @@ python3 "${CODEX_HOME:-$HOME/.codex}/skills/whiteboard-video/scripts/whiteboard_
 ```
 
 Always use the installed Skill's absolute wrapper path shown above. Do not call a project-local `whiteboard-video/scripts/whiteboard_cli.py`; stale copies may prepend a bundled `src` directory and shadow the latest installed engine defaults.
+
+## Visual Styles
+
+The engine provides 30 versioned styles named for media, materials, and
+production methods. A style does more than append prompt text: it controls the
+actual color-fill material, stroke detail, line width, line-art snap, natural
+block count, overlap, and ordering. The resolved recipe and optional `--theme`
+are stored in the `project.json` style snapshot and participate in planning and
+resume fingerprints.
+
+Style-selection arguments belong only to `plan-script` and `run`: planning uses
+the semantic prompt fields, while `run` also inherits the recipe's renderer
+settings. `render-photo` / `render-image` reject style selectors and do not
+inherit a recipe. Their fixed single-image defaults include
+`--line-thickness 0`, `--stroke-detail rich`, `--block-fill-style crayon`, and
+`--block-overlap 0.08`.
+
+Whiteboard compatibility groups:
+
+- `native` (15): `warm-crayon-storybook`, `colored-pencil-diary`,
+  `clean-whiteboard`, `minimal-line-explainer`, `marker-whiteboard`,
+  `rough-diagram`, `pressure-ink-notes`, `semantic-ink`, `anime-graphite`,
+  `bean-doodle-infographic`, `organic-contour-doodle`, `naive-marker-notes`,
+  `notebook-pencil-doodle`, `inked-storybook`, `blueprint-pencil`.
+- `adaptive` (9): `kid-crayon`, `raw-kid-crayon`,
+  `emotional-watercolor-sketch`, `ink-wash-minimal`, `retro-gouache-concept`,
+  `nordic-gouache-storybook`, `sunlit-storybook`, `editorial-portrait`,
+  `real-crayon-paper`.
+- `experimental` (6): `ballpoint-scribble`, `warm-flat-storybook`,
+  `zine-riso-collage`, `manga-screentone`, `linocut-editorial`,
+  `ms-paint-doodle`.
+
+Use `native` for the most predictable unattended production. Preview
+`adaptive` recipes first; dense texture, black masses, or weak contours make
+`experimental` results more source-dependent. The stable default is
+`warm-crayon-storybook`, also configurable with `WHITEBOARD_STYLE`.
+
+```bash
+CLI="${CODEX_HOME:-$HOME/.codex}/skills/whiteboard-video/scripts/whiteboard_cli.py"
+python3 "$CLI" list-styles
+python3 "$CLI" list-styles --compatibility native
+python3 "$CLI" list-styles --json
+python3 "$CLI" recommend-styles story.md --limit 5
+python3 "$CLI" recommend-styles story.md --limit 5 --json
+```
+
+For a new script-to-story task, the Skill should inspect local recommendations
+first without forcing the user through a 30-option approval step every time.
+Honor a named style directly; pass `--style auto` when selection is delegated;
+otherwise keep the stable default, or choose one clearly better `native`
+recommendation when the subject makes that choice obvious, and briefly report it.
+
+```bash
+python3 "$CLI" run story.md -o out/story.mp4 --style colored-pencil-diary
+python3 "$CLI" run story.md -o out/story.mp4 --style auto
+python3 "$CLI" run story.md -o out/story.mp4 \
+  --custom-style "Loose blue-pencil travel sketch, one warm-orange accent, broad white space"
+python3 "$CLI" run story.md -o out/story.mp4 \
+  --custom-style-file /absolute/path/to/style.json \
+  --theme "Quiet early morning with restrained optimism"
+```
+
+Custom JSON can inherit a stable recipe with `extends` and override only the
+needed fields:
+
+```json
+{
+  "extends": "colored-pencil-diary",
+  "id": "custom-blue-pencil-travel",
+  "name_zh": "蓝铅笔旅行日记",
+  "name_en": "Blue-pencil travel diary",
+  "palette": "Prussian blue and dusty cyan with one warm-orange accent",
+  "render": {
+    "block_fill_style": "dry-brush",
+    "stroke_detail": "rich",
+    "draw_blocks": 3
+  }
+}
+```
+
+`--style`, `--custom-style`, and `--custom-style-file` are mutually exclusive;
+`--theme` can accompany any one of them. Recipes contain text and numeric
+parameters only: they do not embed or fetch third-party samples, artist
+reference boards, or brushes, and built-in styles are not named after artists.
+See [references/pipeline.md](references/pipeline.md) for the full workflow and
+JSON boundaries.
+
+An explicit custom JSON `id` must begin with `custom-`. Do not provide
+`provenance`: it is not a user-writable schema field, and the engine marks the
+loaded recipe as user-authored. For `run`, the following options override the
+style snapshot only when explicitly supplied; otherwise the recipe remains in
+control:
+
+- `--block-fill-style crayon|clean|soft-wash|dry-brush`
+- `--stroke-detail balanced|rich|max` and `--line-thickness 0..16`
+- `--line-art-snap` / `--no-line-art-snap` and
+  `--line-art-snap-threshold 1..254`
+- `--max-draw-blocks N`, `--draw-blocks N` (or `0` for automatic
+  grouping), `--block-overlap 0..0.65`, and `--block-order reading|source`
+- `--block-sequence 1,0,...` (an explicit run-time order, not a recipe field)
+
+The single-image commands instead spell their snap controls
+`--no-lineart-snap` and `--lineart-snap-threshold`; do not mix those with the
+hyphenated `run` forms.
 
 ## Local Models
 
