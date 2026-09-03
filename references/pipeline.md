@@ -19,7 +19,8 @@ script
   -> scene plan and narration
   -> gpt-image-2 COLOR storyboard PNG
   -> Informative Drawings / Anime2Sketch line art from that same PNG
-  -> block-speedpaint: coarse block -> details -> crayon color
+  -> block-speedpaint: natural coarse blocks -> details
+       -> block-local color OR one whole-scene registered color/background pass
   -> optional sparse positioned annotations
   -> silent master or optional Doubao Voice 2 / Edge narration
   -> speech-paced scene clips, editable sidecar SRT, and final MP4
@@ -132,6 +133,7 @@ what the new medium needs:
   "avoid": "photorealism, glossy paint, dense scenery, generated writing, logos, cropped subjects",
   "render": {
     "block_fill_style": "dry-brush",
+    "color_fill_scope": "block",
     "stroke_detail": "rich",
     "line_thickness": 0,
     "line_art_snap": true,
@@ -152,7 +154,7 @@ derives a stable custom id. `provenance` is intentionally not accepted from the
 file. The engine records the resolved recipe provenance as user-authored.
 
 Supported render values are deliberately bounded: `block_fill_style` is one of
-`crayon|clean|soft-wash|dry-brush`; `stroke_detail` is
+`crayon|clean|soft-wash|dry-brush`; `color_fill_scope` is `block|scene`; `stroke_detail` is
 `balanced|rich|max`; `line_thickness` is `0..16`; snap threshold is
 `1..254`; block counts are `1..24` (`draw_blocks` may be `null`); overlap is
 `0..0.65`; and block order is `reading|source`.
@@ -161,6 +163,7 @@ For `run`, omitting renderer controls inherits these values from the resolved
 style snapshot. The complete per-run override surface is:
 
 - `--block-fill-style crayon|clean|soft-wash|dry-brush`
+- `--color-fill-scope block|scene`
 - `--stroke-detail balanced|rich|max`
 - `--line-thickness 0..16`, where `0` requests automatic source-aware sizing
 - `--line-art-snap` / `--no-line-art-snap` and
@@ -171,9 +174,17 @@ style snapshot. The complete per-run override surface is:
   unlike the preceding fields, this is a run-time instruction rather than a
   style-recipe value
 
+`block` reveals color inside each natural object window. `scene` keeps the same
+coarse/detail object grouping but reveals the complete registered source and
+continuous background only once from left to right across the full canvas.
+Use scene scope for full-bleed graphite, watercolor, street, wall, snow, or sky
+backgrounds that must not become rectangular object patches. Style 9,
+`anime-graphite`, inherits `scene` by default.
+
 The similarly named single-image controls have fixed command defaults rather
 than style inheritance: `render-photo` and `render-image` default to
-`--line-thickness 0`, `--stroke-detail rich`, `--block-fill-style crayon`, six
+`--line-thickness 0`, `--stroke-detail rich`, `--block-fill-style crayon`,
+`--color-fill-scope block`, six
 maximum inferred blocks, `0.08` overlap, reading order, and enabled line-art
 snap. Their snap spellings are `--no-lineart-snap` and
 `--lineart-snap-threshold`; do not substitute the `run` spellings above.
@@ -229,11 +240,12 @@ python3 "$CLI" run story.md \
 ```
 
 The `run` defaults are 30fps, `gpt-image-2`, `image-quality=low`, no burned narration,
-and `block-speedpaint`. Fill, line, snap, and natural-block values inherit the
+and `block-speedpaint`. Fill media, color scope, line, snap, and natural-block values inherit the
 resolved style snapshot when their `run` overrides are omitted. The stable
 `warm-crayon-storybook` recipe currently resolves to automatic line width, rich
-stroke detail, crayon fill, at most four preferred natural blocks, and `0.16`
-overlap; another style can resolve differently. Connected objects are never
+stroke detail, crayon fill with `color_fill_scope=block`, at most four preferred
+natural blocks, and `0.16` overlap; style 9, `anime-graphite`, instead resolves
+to `color_fill_scope=scene`. Another style can resolve differently. Connected objects are never
 split to reach a count. Use `--draw-blocks 0` for automatic grouping up to the
 resolved `max_draw_blocks`. Use `--image-quality medium` for final frames when
 needed. Use `--tts-provider none` for a silent master, or select Doubao/Edge and
@@ -327,15 +339,20 @@ duration, annotations, or timing cues invalidates stale downstream artifacts saf
 ## Block-Speedpaint Controls
 
 Within each inferred spatial block, the renderer draws a coarse structural
-pass, adds local detail, then reveals that block's original crayon color from
-left to right. Short annotations reveal character by character with a brief
+pass and adds local detail. With `--color-fill-scope block`, it then reveals
+that block's registered color from left to right. With
+`--color-fill-scope scene`, natural line-art blocks remain unchanged, but color
+is deferred to one full-width pass containing the complete registered source
+and background. Short annotations reveal character by character with a brief
 pencil-like wipe only after the picture is readable. They live on a separate
 overlay timeline and never become image strokes. They intentionally become
 part of the scene-video pixels, separate from the optional final SRT burn-in.
 Phase and block windows overlap slightly to avoid stop-start motion. With timing
 cues, cue intervals advance this shared coarse/detail/color/annotation clock and
 gaps briefly hold the picture. Without cues, the original continuous clock is
-preserved.
+preserved. Scene scope devotes roughly the first 72% of the drawing interval to
+natural-block lines; its whole-frame color begins near 68%, overlaps the final
+details by about 4%, and reaches completion at the end of that interval.
 
 `target_blocks` is an upper-bound preference, not a quota. Connected people,
 props, buildings, and structural bridges remain indivisible; only objects with
@@ -344,10 +361,17 @@ line art, the binary skeleton is an invisible motion guide. Cleaned
 Anime2Sketch grayscale tones are revealed as the visible pencil layer so line
 weight remains natural.
 
+For full-bleed scene scope, prompt the image model for one continuous,
+low-detail environmental backdrop behind complete foreground subjects. Reject
+panels, page frames, rectangular scenic cutouts, and disconnected backdrop
+islands. The prompt keeps the composition coherent; scene scope keeps its
+registered color reveal coherent.
+
 ```bash
 python3 "$CLI" render-photo scene_01.png \
   -o /tmp/scene-01.mp4 --duration 8 --fps 30 \
   --lineart-provider auto --animation-preset block-speedpaint \
+  --color-fill-scope scene \
   --draw-text "出发" \
   --max-draw-blocks 6 --block-order reading --block-overlap 0.08 \
   --hand asian
@@ -355,7 +379,8 @@ python3 "$CLI" render-photo scene_01.png \
 
 - For this standalone `render-photo` example, `--max-draw-blocks` defaults to
   `6`, `--draw-blocks` has no preferred-count override, `--block-order` defaults
-  to `reading`, and `--block-overlap` defaults to `0.08`.
+  to `reading`, `--block-overlap` defaults to `0.08`, and the explicit
+  `--color-fill-scope scene` changes only color reveal—not natural line grouping.
 - `--draw-blocks`: preferred maximum natural block count; never cuts connected
   objects to reach it.
 - `--block-sequence 1,0`: explicit inferred block-ID order; use only after

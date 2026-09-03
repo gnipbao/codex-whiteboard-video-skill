@@ -1,6 +1,6 @@
 ---
 name: whiteboard-video
-description: Generate smooth hand-drawn whiteboard and story videos directly inside Codex from text scripts, GPT Image 2 color storyboards, scene plans, SVGs, line art, or local images. Supports 30 built-in visual styles, automatic recommendations, custom media recipes, block-by-block coarse/detail/color animation, local image-to-line-art extraction, stroke/path drawing, hand/pen-tip following, narration/TTS including Doubao Voice 2, and FFmpeg composition.
+description: Generate smooth hand-drawn whiteboard and story videos directly inside Codex from text scripts, GPT Image 2 color storyboards, scene plans, SVGs, line art, or local images. Supports 30 built-in visual styles, automatic recommendations, custom media recipes, natural-block coarse/detail drawing with block-local or whole-scene color reveal, local image-to-line-art extraction, stroke/path drawing, hand/pen-tip following, narration/TTS including Doubao Voice 2, and FFmpeg composition.
 ---
 
 # Whiteboard Video
@@ -54,7 +54,7 @@ The engine provides 30 versioned, media-named visual recipes. The stable default
 is `warm-crayon-storybook`, also configurable with `WHITEBOARD_STYLE`. Style
 selection belongs to `plan-script` and `run`: planning uses the semantic visual
 guidance, while `run` also inherits the recipe's maintained renderer defaults:
-`block_fill_style`, `stroke_detail`, `line_thickness`, line-art snap and its
+`block_fill_style`, `color_fill_scope`, `stroke_detail`, `line_thickness`, line-art snap and its
 threshold, preferred/capped block counts, overlap, and block order. The resolved
 recipe and optional `--theme` are stored in `project.json`; their semantic fields
 participate in planning and resume fingerprints.
@@ -62,7 +62,7 @@ participate in planning and resume fingerprints.
 Do not pass style-selection flags to `render-photo` or `render-image`; those
 single-image commands do not resolve a recipe. They use explicit command defaults,
 including `--line-thickness 0`, `--stroke-detail rich`,
-`--block-fill-style crayon`, and `--block-overlap 0.08`, until their own flags
+`--block-fill-style crayon`, `--color-fill-scope block`, and `--block-overlap 0.08`, until their own flags
 override them.
 
 At the start of a new script-to-story job, run `recommend-styles` to inspect the
@@ -126,18 +126,27 @@ loaded recipes as user-authored itself. Visual recipes use generic media and
 production-method names, not artist names, and include no third-party sample
 images or brush assets.
 
+Style 9, `anime-graphite`, defaults to `color_fill_scope=scene`. Its people and
+props still draw as complete natural line-art blocks, but the registered color
+frame—including snow, walls, streets, sky, and paper-toned washes—is revealed
+only once across the full canvas. For this and similar full-bleed styles, make
+the storyboard prompt describe one continuous, low-detail environmental
+backdrop and reject panels, frames, rectangular scenic cutouts, or disconnected
+background islands.
+
 ## Script to Story Video
 
 The production scene pipeline is:
 
 ```text
 script -> scene plan -> GPT Image 2 color frame -> local neural line art
-       -> coarse local block -> local details -> local crayon color
+       -> coarse natural blocks -> local details
+       -> block-local color OR one whole-scene registered color/background pass
        -> optional sparse handwritten annotations -> silent or narrated MP4
        -> editable sidecar SRT -> optional final subtitle burn-in
 ```
 
-`block-speedpaint` infers spatial drawing blocks and runs the coarse/detail/color phases inside each block. Adjacent blocks and phases overlap slightly so the motion stays continuous. A narrated run can use phrase timing cues to pace this same drawing clock: active speech advances the picture and meaningful pauses briefly hold it. The pipeline always writes an editable SRT beside the MP4 and leaves the picture clean by default; pass `--burn-subtitles` only when the requested deliverable needs narration subtitles baked into the final MP4. Optional annotations are short, positioned labels that never enter the GPT storyboard, extracted line art, or object grouping; the renderer intentionally adds them as late scene-video pixels, independently of the final SRT subtitle layer.
+`block-speedpaint` infers spatial drawing blocks for coarse contours and local details. With `--color-fill-scope block`, each block then receives its own local color beat. With `--color-fill-scope scene`, the same natural line blocks remain intact while the complete registered color frame and continuous background arrive in one full-width pass. Scene scope uses roughly the first 72% of the drawing interval for block lines; the global color pass starts near 68%, overlaps the last details by about 4%, and finishes at the end of the interval. A narrated run can use phrase timing cues to pace this same drawing clock: active speech advances the picture and meaningful pauses briefly hold it. The pipeline always writes an editable SRT beside the MP4 and leaves the picture clean by default; pass `--burn-subtitles` only when the requested deliverable needs narration subtitles baked into the final MP4. Optional annotations are short, positioned labels that never enter the GPT storyboard, extracted line art, or object grouping; the renderer intentionally adds them as late scene-video pixels, independently of the final SRT subtitle layer.
 
 Configure credentials through the shell or a secret manager, never in scripts, prompts, `project.json`, or committed `.env` files:
 
@@ -160,12 +169,13 @@ python3 "${CODEX_HOME:-$HOME/.codex}/skills/whiteboard-video/scripts/whiteboard_
   --tts-provider none
 ```
 
-Use `--image-quality low` for drafts and `medium` for a final render when the visual gain justifies the extra cost. The full `run` command defaults to 30 fps, `gpt-image-2`, no burned narration, and `block-speedpaint`. Its fill, line, snap, and natural-block settings are not separate fixed CLI defaults: when omitted, they inherit the resolved style snapshot. The stable `warm-crayon-storybook` recipe currently resolves to automatic line width, rich stroke detail, crayon fill, at most four preferred natural blocks, and `0.16` overlap; selecting another style may change any of these values. Connected objects are never split merely to reach a count; use `--draw-blocks 0` for uncapped automatic grouping up to the resolved `max_draw_blocks`. Use `--tts-provider none` for a silent edit master, or select Doubao/Edge and pass `--voice <speaker-id>`. Both narrated and silent runs write `<video-name>.srt`. Add `--burn-subtitles` to render that SRT into the final `-o` MP4 while retaining the sidecar; style it with `--subtitle-font`, `--subtitle-font-size`, `--subtitle-margin-v`, and `--subtitle-outline`. The legacy `--captions` and `--no-captions` flags are deprecated no-ops and are mutually exclusive with `--burn-subtitles`. Scene annotations remain independent.
+Use `--image-quality low` for drafts and `medium` for a final render when the visual gain justifies the extra cost. The full `run` command defaults to 30 fps, `gpt-image-2`, no burned narration, and `block-speedpaint`. Its fill, fill scope, line, snap, and natural-block settings are not separate fixed CLI defaults: when omitted, they inherit the resolved style snapshot. The stable `warm-crayon-storybook` recipe currently resolves to automatic line width, rich stroke detail, crayon fill with `color_fill_scope=block`, at most four preferred natural blocks, and `0.16` overlap; selecting another style may change any of these values. Style 9 resolves to `color_fill_scope=scene`. Connected objects are never split merely to reach a count; use `--draw-blocks 0` for uncapped automatic grouping up to the resolved `max_draw_blocks`. Use `--tts-provider none` for a silent edit master, or select Doubao/Edge and pass `--voice <speaker-id>`. Both narrated and silent runs write `<video-name>.srt`. Add `--burn-subtitles` to render that SRT into the final `-o` MP4 while retaining the sidecar; style it with `--subtitle-font`, `--subtitle-font-size`, `--subtitle-margin-v`, and `--subtitle-outline`. The legacy `--captions` and `--no-captions` flags are deprecated no-ops and are mutually exclusive with `--burn-subtitles`. Scene annotations remain independent.
 
 Only `run` treats the following as overrides of the selected style. Omit them to
 inherit the recipe:
 
 - `--block-fill-style crayon|clean|soft-wash|dry-brush`
+- `--color-fill-scope block|scene`
 - `--stroke-detail balanced|rich|max`
 - `--line-thickness 0..16` (`0` requests automatic source-aware sizing)
 - `--line-art-snap` / `--no-line-art-snap` and
@@ -246,9 +256,9 @@ do not repeatedly ask the user to choose from the entire library.
 15. For `block-speedpaint`, positioned annotations appear late using a per-character left-to-right pencil/typewriter reveal. They are not added to image strokes, so they cannot change inferred object blocks. `--draw-text` belongs only to standalone `render-photo` / `render-image` and should be used only for a deliberate short label or title. Use `--burn-subtitles`, not the deprecated `--captions`, when `run` narration subtitles must be baked into the deliverable.
 16. On the single-image `render-photo` / `render-image` commands, crayon drawings that should begin as an uncolored sketch can use `--line-reveal detail-wipe --hand none`; the initial layer keeps heavy outer contours plus dense neutral-black areas such as hair, while leaving colored surfaces and fine internal texture blank. Remaining details arrive through a soft left-to-right mask. These flags are not `run` options.
 17. On those same single-image commands, pair that mode with `--color-fill left-to-right-gradient` to restore the original crayon color from left to right. A strong 10-second starting point is `--tail-color 4 --base-line-opacity 0.76`; these are not style-recipe fields.
-18. Prefer `--animation-preset block-speedpaint` for story scenes. Each natural object block progresses through coarse contours, local details, and left-to-right crayon color. Sparse annotations overlay late, during roughly the final 15% of the scene, and may overlap the drawing's last beats; they never delay the first stroke. Only the legacy standalone full-caption role may add a short pre-draw lead-in.
+18. Prefer `--animation-preset block-speedpaint` for story scenes. In `block` color scope, each natural object progresses through coarse contours, local details, and left-to-right color. In `scene` scope, objects keep those natural coarse/detail blocks, then the complete registered color frame and background reveal once across the canvas; use this for continuous full-bleed environments and for style 9. Sparse annotations overlay late, during roughly the final 15% of the scene, and may overlap the drawing's last beats; they never delay the first stroke. Only the legacy standalone full-caption role may add a short pre-draw lead-in.
 19. Use `--scene-plan <json> --storyboard-dir <dir>` for externally generated color frames named `scene_01.*`, `scene_02.*`, and so on. This skips OpenAI planning/image clients; the engine still extracts line art locally from every supplied frame.
-20. Use `--tts-provider none` for a silent master, `--tts-provider doubao` for Doubao Voice 2, or `--tts-provider edge` for Edge TTS. Valid Doubao word timestamps are grouped into phrase beats that pace coarse lines, details, block color, and sparse annotations through one shared clock. Without valid provider timing, retain authored cues when present; only the no-provider-cue/no-authored-cue case uses estimated SRT phrases while preserving continuous drawing motion. `--burn-subtitles` consumes that same SRT after composition, so sidecar and picture timings stay identical. Cache provider timing in `audio/scene_NN.alignment.json`; invalidate it with changed narration, voice, or synthesis settings. Do not log, print, or commit provider credentials.
+20. Use `--tts-provider none` for a silent master, `--tts-provider doubao` for Doubao Voice 2, or `--tts-provider edge` for Edge TTS. Valid Doubao word timestamps are grouped into phrase beats that pace coarse lines, details, the selected block/scene color scope, and sparse annotations through one shared clock. Without valid provider timing, retain authored cues when present; only the no-provider-cue/no-authored-cue case uses estimated SRT phrases while preserving continuous drawing motion. `--burn-subtitles` consumes that same SRT after composition, so sidecar and picture timings stay identical. Cache provider timing in `audio/scene_NN.alignment.json`; invalidate it with changed narration, voice, or synthesis settings. Do not log, print, or commit provider credentials.
 21. Real runs reject `--scene-assets direct-lineart`; it exists only for deterministic Mock previews. Production always keeps a GPT color source and locally extracted registered line art.
 22. The pipeline normalizes color storyboards onto the project canvas before extraction and fingerprints the script plan, source, line art, audio, and render parameters so `--resume` cannot silently pair new content with stale layers.
 
@@ -306,7 +316,7 @@ This skill does not vendor engine code. `scripts/whiteboard_cli.py` imports `whi
 
 - `providers/lineart.py`: local line-art providers, Informative Drawings and Anime2Sketch wrappers, optional vtracer integration.
 - `preprocess.py`: SVG parsing, raster binarization, Zhang-Suen skeletonization, 8-neighbor stroke tracing.
-- `whiteboard.py`: classic stroke renderer plus `block-speedpaint`, hand/pen-tip cursor, line-art snap completion, separate text reveal, and crayon color fill.
+- `whiteboard.py`: classic stroke renderer plus `block-speedpaint`, hand/pen-tip cursor, line-art snap completion, separate text reveal, and block-local or whole-scene color fill.
 - `pipeline.py`: resumable `work/<project_id>/` orchestration.
 - `styles.py`: 30 built-in recipes, compatibility metadata, recommendation,
   constrained custom-style loading, prompt composition, and style fingerprints.
