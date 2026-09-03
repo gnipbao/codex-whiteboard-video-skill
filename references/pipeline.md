@@ -2,7 +2,35 @@
 
 This Codex skill delegates all commands to the installed
 `whiteboard-video-engine` package through `scripts/whiteboard_cli.py`. Install
-the engine before using these commands.
+the engine before using these commands. Always invoke the installed Skill
+wrapper rather than a stale project-local copy:
+
+```bash
+CLI="${CODEX_HOME:-$HOME/.codex}/skills/whiteboard-video/scripts/whiteboard_cli.py"
+```
+
+If the engine lives in a virtual environment, invoke the wrapper with that environment's Python or export `WHITEBOARD_ENGINE_PYTHON=/absolute/path/to/venv/bin/python` before using `python3 "$CLI"`.
+
+## Production Data Flow
+
+```text
+script
+  -> scene plan and narration
+  -> gpt-image-2 COLOR storyboard PNG
+  -> Informative Drawings / Anime2Sketch line art from that same PNG
+  -> block-speedpaint: coarse block -> details -> crayon color
+  -> optional sparse positioned annotations
+  -> silent master or optional Doubao Voice 2 / Edge narration
+  -> speech-paced scene clips, editable sidecar SRT, and final MP4
+  -> optional FFmpeg/libass subtitle burn-in
+```
+
+The color frame and extracted line art must remain pixel-registered. GPT Image
+2 is never the production line-art generator, and text is never burned into
+generated images. Sparse labels are rendered locally and independently so they
+do not affect object grouping. The pipeline always writes an editable SRT and
+leaves the composed picture clean by default; `--burn-subtitles` optionally
+renders that same SRT into the final delivery MP4 after composition.
 
 ## Artifact Layout
 
@@ -10,22 +38,212 @@ the engine before using these commands.
 work/<project_id>/
   project.json
   images/
+    color/scene_01.png
+    lineart/scene_01.png
   audio/
-  renders/
+  renders/scene_01.mp4
 ```
 
-The final MP4 path is supplied with `-o`.
+The final MP4 path is supplied with `-o`; an SRT with the same basename is
+written beside it.
 
-## Commands
+For timing-capable providers, `audio/scene_NN.alignment.json` stores the exact
+sentence and word intervals used by both the renderer and SRT writer. It is a
+cache artifact, not authored input, and its fingerprint includes narration,
+voice, provider identity, and output-affecting synthesis settings.
+
+## Offline Mock Preview
+
+Use the mock pipeline to validate scene splitting, timing, block animation, and
+composition without API usage. Mock `auto` asset mode resolves to direct line
+art; the explicit flag below makes that behavior visible:
 
 ```bash
-MOCK=1 python3 scripts/whiteboard_cli.py run examples/ten-second-demo.md -o /tmp/demo.mp4 --scenes 2 --fps 24 --width 640 --height 360
-python3 scripts/whiteboard_cli.py plan-script examples/ten-second-demo.md -o /tmp/scenes.json --scenes 2
-python3 scripts/whiteboard_cli.py analyze-image examples/apple.svg -o /tmp/apple-analysis.json --width 640 --height 360
-python3 scripts/whiteboard_cli.py extract-lineart source.png -o /tmp/lineart.png --provider auto
-python3 scripts/whiteboard_cli.py render-photo source.png -o /tmp/photo.mp4 --duration 15 --lineart-provider auto --hand asian
-python3 scripts/whiteboard_cli.py render-image examples/apple.svg -o /tmp/apple.mp4 --duration 2 --hand asian
-python3 scripts/whiteboard_cli.py list-hands
+MOCK=1 python3 "$CLI" run examples/ten-second-demo.md \
+  -o /tmp/ten-second-demo.mp4 \
+  --scenes 2 --fps 30 --width 640 --height 360 \
+  --scene-assets direct-lineart \
+  --animation-preset block-speedpaint
+```
+
+## Real Story Run
+
+Inject credentials with the user's shell or secret manager. Never place values
+in command history, prompts, committed files, or generated project metadata.
+
+- OpenAI: `OPENAI_API_KEY`; `IMAGE_MODEL` defaults to `gpt-image-2` and
+  `IMAGE_QUALITY` defaults to `low`.
+- Doubao new console: `DOUBAO_TTS_API_KEY` (the engine also accepts
+  `DOUBAO_API_KEY` or `MODEL_SPEECH_API_KEY`).
+- Doubao legacy console: `DOUBAO_TTS_APP_ID` plus
+  `DOUBAO_TTS_ACCESS_KEY` instead of the new API key.
+- Doubao Voice 2 must use `DOUBAO_TTS_RESOURCE_ID=seed-tts-2.0` and
+  `DOUBAO_TTS_ENDPOINT=https://openspeech.bytedance.com/api/v3/tts/unidirectional/sse`.
+  Do not redirect credentials to another endpoint. The default speaker is
+  `zh_female_vv_uranus_bigtts`; replace it only with a speaker enabled for the
+  user's account. The provider requests `audio_params.enable_subtitle=true`;
+  returned sentence/word timestamps pace drawing and produce the SRT.
+
+Run the complete color-to-line-art path:
+
+```bash
+python3 "$CLI" run story.md \
+  -o /tmp/story.mp4 \
+  --scenes 6 --fps 30 --width 1920 --height 1080 \
+  --image-model gpt-image-2 --image-quality low \
+  --scene-assets color-to-lineart --lineart-provider auto \
+  --animation-preset block-speedpaint --draw-blocks 4 --block-overlap 0.16 \
+  --tts-provider none
+```
+
+The `run` defaults are 30fps, `gpt-image-2`, `image-quality=low`, no burned narration,
+`block-speedpaint`, a preference of at most four natural spatial blocks, and
+`0.16` block overlap. Connected objects are never split to reach that count.
+Use `--draw-blocks 0` for uncapped automatic grouping. Use `--image-quality medium` for final frames when
+needed. Use `--tts-provider none` for a silent master, or select Doubao/Edge and
+pass `--voice <speaker-id>`. Both modes produce a sidecar SRT. Add
+`--burn-subtitles` to bake that SRT into the final `-o` MP4 while retaining the
+sidecar. The legacy `--captions` and `--no-captions` flags are deprecated no-ops
+and are mutually exclusive with the new burn-in flag.
+
+For a narrated 16:9 delivery with subtitles already burned in:
+
+```bash
+python3 "$CLI" run story.md \
+  -o /tmp/story-subtitled.mp4 \
+  --scenes 6 --fps 30 --width 1920 --height 1080 \
+  --image-model gpt-image-2 --image-quality low \
+  --scene-assets color-to-lineart --lineart-provider auto \
+  --animation-preset block-speedpaint --draw-blocks 4 --block-overlap 0.16 \
+  --tts-provider doubao --voice zh_female_vv_uranus_bigtts \
+  --burn-subtitles --subtitle-font "sans-serif" \
+  --subtitle-font-size 16 --subtitle-margin-v 22 --subtitle-outline 1.6
+```
+
+The burn-in controls are:
+
+- `--burn-subtitles`: burn the generated SRT into the final MP4; off by default.
+- `--subtitle-font`: libass font family; default `sans-serif`, with glyph-compatible fallback.
+- `--subtitle-font-size`: ASS scale-unit size; default `16` for 16:9 output.
+- `--subtitle-margin-v`: lower safe-area margin in ASS scale units; default `22`.
+- `--subtitle-outline`: black outline width in ASS scale units; default `1.6`.
+
+Burn-in runs only after clean composition and SRT creation. It uses a temporary
+sibling file, copies audio without re-encoding, preserves input frame timing,
+and atomically replaces the requested output. If FFmpeg/libass fails, the clean
+MP4 and sidecar SRT remain available.
+
+In a narrated run, measured speech duration controls the scene clock; the
+scene-plan `duration_sec` is retained for silent renders. Provider words are
+grouped into short phrase beats. Visual progress is proportional to actual
+spoken time, and gaps between phrases hold the drawing briefly. The final
+visual tail remains subtitle-free. Composition requires one narration file per
+scene so a missing middle track can never pull later speech forward.
+
+Additional Doubao controls are available through
+`DOUBAO_TTS_FORMAT`, `DOUBAO_TTS_SAMPLE_RATE`,
+`DOUBAO_TTS_SPEECH_RATE`, `DOUBAO_TTS_PITCH_RATE`,
+`DOUBAO_TTS_LOUDNESS_RATE`, `DOUBAO_TTS_BIT_RATE`, and
+`DOUBAO_TTS_TIMEOUT_SEC`. Keep the default MP3/24kHz settings unless the target
+workflow needs something else.
+
+## Precomputed Color Storyboards
+
+Color frames produced by Codex image generation or another approved tool can
+skip the pipeline's image-generation call. Store them in one directory using
+the scene plan's one-based order:
+
+```text
+storyboards/
+  scene_01.png
+  scene_02.png
+  scene_03.png
+```
+
+PNG, WebP, JPG, and JPEG are accepted. The supplied frames are still processed
+by the configured local neural line-art provider. Save the matching approved
+scene list as JSON with consecutive ids `1..N` and the fields `id`, `narration`,
+`image_prompt`, and `duration_sec`. Each scene may also contain zero to two
+`annotations` with short `text` plus normalized `x` and `y` top-left positions.
+Most scenes should use none; keep `y <= 0.72` to protect the lower subtitle-safe
+area for post-production. An optional ordered `timing_cues` list can contain
+`text`, local `start_sec`, local `end_sec`, and an optional cumulative `draw_to`.
+If `draw_to` is present, provide it on every cue, keep it increasing, and end at
+`1.0`. Passing both inputs prevents initialization
+of the OpenAI planning and image providers:
+
+```bash
+python3 "$CLI" run story.md \
+  -o /tmp/story-from-frames.mp4 \
+  --scene-plan /absolute/path/to/scene-plan.json --fps 30 \
+  --storyboard-dir /absolute/path/to/storyboards \
+  --lineart-provider auto --animation-preset block-speedpaint --draw-blocks 4 \
+  --tts-provider none
+```
+
+The silent Codex-precomputed path needs no provider credential. The explicit
+plan is included in resume fingerprints so changing narration, prompts, order,
+duration, annotations, or timing cues invalidates stale downstream artifacts safely.
+
+## Block-Speedpaint Controls
+
+Within each inferred spatial block, the renderer draws a coarse structural
+pass, adds local detail, then reveals that block's original crayon color from
+left to right. Short annotations reveal character by character with a brief
+pencil-like wipe only after the picture is readable. They live on a separate
+overlay timeline and never become image strokes. Phase and block windows
+overlap slightly to avoid stop-start motion. With timing cues, spoken intervals
+advance this shared coarse/detail/color/annotation clock and pauses briefly hold
+the picture. Without cues, the original continuous clock is preserved.
+
+`target_blocks` is an upper-bound preference, not a quota. Connected people,
+props, buildings, and structural bridges remain indivisible; only objects with
+real whitespace between them become separate left-to-right blocks. For raster
+line art, the binary skeleton is an invisible motion guide. Cleaned
+Anime2Sketch grayscale tones are revealed as the visible pencil layer so line
+weight remains natural.
+
+```bash
+python3 "$CLI" render-photo scene_01.png \
+  -o /tmp/scene-01.mp4 --duration 8 --fps 30 \
+  --lineart-provider auto --animation-preset block-speedpaint \
+  --draw-text "出发" \
+  --max-draw-blocks 6 --block-order reading --block-overlap 0.08 \
+  --hand asian
+```
+
+- `--max-draw-blocks`: cap automatic grouping; default `6`.
+- `--draw-blocks`: preferred maximum natural block count; never cuts connected objects to reach it.
+- `--block-order reading|source`: select automatic order; default `reading`.
+- `--block-overlap`: overlap adjacent windows; standalone `render-photo`/`render-image` default `0.08`, full `run` default `0.16`.
+- `--block-sequence 1,0`: explicit inferred block-ID order; use only after
+  inspection because duplicates and unknown IDs are errors.
+- `annotations`: preferred scene-plan mechanism for 2–5 character explanatory
+  labels. Use at most two and place them in nearby whitespace.
+- `--draw-text`: a standalone short annotation for one-off renders.
+- `--story-text`: legacy standalone full-caption input for one-off renders;
+  full `run` subtitles come only from the generated sidecar SRT and are burned
+  only when `--burn-subtitles` is explicit.
+
+Full `run` also accepts these block controls. Real runs do not accept
+`direct-lineart`; that mode is deliberately limited to Mock previews because
+the real image provider creates color storyboards.
+
+Before extraction, generated and precomputed color frames are copied or
+normalized onto the exact project canvas. Resume state includes content and
+parameter fingerprints for the script plan, color sources, line art, narration, and rendered
+clips, so changed assets or animation controls invalidate the right downstream
+stages instead of reusing stale output.
+
+## Utility Commands
+
+```bash
+python3 "$CLI" plan-script examples/ten-second-demo.md -o /tmp/scenes.json --scenes 2
+python3 "$CLI" analyze-image examples/apple.svg -o /tmp/apple-analysis.json --width 640 --height 360
+python3 "$CLI" extract-lineart source.png -o /tmp/lineart.png --provider auto
+python3 "$CLI" render-photo source.png -o /tmp/photo.mp4 --duration 15 --fps 30 --lineart-provider auto --hand asian
+python3 "$CLI" render-image examples/apple.svg -o /tmp/apple.mp4 --duration 2 --fps 30 --hand asian
+python3 "$CLI" list-hands
 ```
 
 ## Rendering Decision Order
@@ -38,14 +256,28 @@ python3 scripts/whiteboard_cli.py list-hands
 ## Provider Modes
 
 - `MOCK=1`: deterministic local LLM/image/TTS mocks for tests.
-- Real mode: OpenAI-compatible LLM/image generation plus Edge TTS. Missing optional dependencies fail only when real mode is requested.
+- Real image mode: GPT Image 2 produces a color storyboard, followed by local
+  Informative Drawings or Anime2Sketch extraction from the same source.
+- `--tts-provider doubao`: Doubao Voice 2 / Seed-TTS 2 narration via the V3 SSE
+  API, using either new-console or legacy credentials. Exact Chinese/English
+  sentence timing drives the animation and SRT when the selected voice returns it.
+- `--tts-provider edge`: Edge TTS narration.
+- `--tts-provider none`: no TTS initialization and a silent final MP4 whose
+  durations come from the scene plan.
+- When exact provider timing is absent, SRT phrases use deterministic punctuation
+  and character-weight estimates, while drawing stays on its original smooth clock.
+- Missing optional dependencies or credentials fail only when the relevant real
+  mode is requested.
 
 ## Integration Test Target
 
 Use the bundled 10-second script:
 
 ```bash
-MOCK=1 python3 scripts/whiteboard_cli.py run examples/ten-second-demo.md -o /tmp/ten-second-demo.mp4 --scenes 2 --fps 24 --width 640 --height 360
+MOCK=1 python3 "$CLI" run examples/ten-second-demo.md \
+  -o /tmp/ten-second-demo.mp4 \
+  --scenes 2 --fps 30 --width 640 --height 360 \
+  --scene-assets direct-lineart --animation-preset block-speedpaint
 ```
 
 For uploaded photos or dense illustrations, see `references/local-lineart.md` before rendering.
